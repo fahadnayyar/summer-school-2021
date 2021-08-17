@@ -1,5 +1,6 @@
 //#title IsPrime I
-//#desc Basic specification
+//#desc Basic specification.
+// Implement a predicate that tells whether a natural number is prime.
 
 //#start-elide
 predicate divides(factor:nat, candidate:nat)
@@ -11,6 +12,7 @@ predicate divides(factor:nat, candidate:nat)
 //#end-elide
 predicate IsPrime(candidate:nat)
 {
+//#exercise  && false // Replace me
 //#start-elide
   && 1 < candidate
   && forall factor :: 1 < factor < candidate ==> !divides(factor, candidate)

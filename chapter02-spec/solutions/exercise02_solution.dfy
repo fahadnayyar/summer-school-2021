@@ -1,6 +1,10 @@
 //#title IsPrime II
 //#desc Working with an implementation proof
 
+// Here's a correct definition of IsPrime.
+// Take another little detour to implementation-land by writing a method
+// `test_prime` that implements IsPrime with an imperative while() loop.
+
 predicate divides(factor:nat, candidate:nat)
   requires 1<=factor
 {
