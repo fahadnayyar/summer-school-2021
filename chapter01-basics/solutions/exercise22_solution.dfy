@@ -4,7 +4,7 @@
 
 // Define a Binary Tree and write a method to check if it is sorted
 
-// A binary tree is a tree data structure in which each node has a value and at
+// A binary tree is a tree data structure in which each (internal) node has a value and at
 // most two children, which are referred to as the left child and the right child.
 
 //#exercisedatatype Tree = Tree // you should define your Tree datatype here
@@ -27,6 +27,7 @@ function method TreeAsSequence(tree:Tree) : seq<int>
 //#end-elide
 }
 
+// Note: Don't use SequenceIsSorted in your definition of IsSortedTree.
 predicate IsSortedTree(tree:Tree) {
 //#exercise    true // Replace me
 //#start-elide
