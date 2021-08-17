@@ -11,9 +11,9 @@ include "exercise22_solution.dfy"
 // that one, too). If in doubt about your solution to exercise22, contact 
 // an instructor during office hours to make sure you're on the right path. 
 
-method FindInBinaryTree(tree:Tree, needle:int) returns (issorted:bool)
+method FindInBinaryTree(tree:Tree, needle:int) returns (found:bool)
     requires IsSortedTree(tree)
-    ensures issorted <==> needle in TreeAsSequence(tree)
+    ensures found <==> needle in TreeAsSequence(tree)
 {
 //#exercise    return true;
 //#start-elide

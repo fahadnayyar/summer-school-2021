@@ -68,6 +68,10 @@ method CheckIfSortedTree(tree:Tree) returns (sorted:bool)
             assert !IsSortedTree(tree);
             return false;
         } else {
+//#elide TODO WTF why are we calling TreeAsSequence? This impl
+//#elide is WORSE than just calling IsSeqSorted(TreeAsSequence(tree)),
+//#elide which is really dumb. Students would imagine that the
+//#elide method should be a FASTER implementation than the dumb one.
             var leftSeq := TreeAsSequence(tree.left);
             var rightSeq := TreeAsSequence(tree.right);
             var isValueAfterLeft:bool := |leftSeq| == 0 || leftSeq[|leftSeq|-1] <= tree.value;
