@@ -31,6 +31,7 @@ class Element:
     self.chapter = chapter
     self.type = type
     self.filename = filename
+    self.extra_top_secret_inline_elision_paths = set()
 
     self.num = None
     if type=="solutions":
@@ -63,19 +64,26 @@ class Element:
   def exercise_path(self):
     return os.path.join(student_dir, self.exercise_rel_path)
 
-  def inline(self, including_path, line):
+  def path_for_inline(self, line):
     mo = re.compile('\S+\s+"(\S+)"').search(line)
     assert mo
-    inlinefile = mo.groups()[0]
+    return mo.groups()[0]
+
+  def inline(self, including_path, line):
+    inlinefile = self.path_for_inline(line)
     inlinepath = os.path.join(os.path.dirname(including_path), inlinefile)
     lines = [line.rstrip() for line in open(inlinepath).readlines()]
     output_lines = []
     for line in lines:
       if (line.startswith("include")
           # what a hackaroo
-          and not "library" in line
-          and not "elide" in line):
-        output_lines += self.inline(inlinepath, line)
+          and not "library" in line):
+          #and not "elide" in line):
+        print("thinking about ", self.path_for_inline(line))
+        if (self.path_for_inline(line) in self.extra_top_secret_inline_elision_paths):
+          print("top-secret-eliding f{self.path_for_inline(line)}")
+        else:
+            output_lines += self.inline(inlinepath, line)
       elif line.startswith("//#"):
         pass
       else:
@@ -83,6 +91,7 @@ class Element:
     return output_lines
 
   def transform_solution(self):
+    print(f"filename {self.filename}")
     if "elide" in self.filename:
       return
     elide = False
@@ -105,6 +114,9 @@ class Element:
         assert elide    # mismatched start-end elide
         elide = False
         output_line = None
+      elif input_line.startswith("//#extratopsecrethackmarkforelision"):
+        # I'm so ashamed.
+        self.extra_top_secret_inline_elision_paths.add(input_line.split(" ")[-1].strip('"'))
       elif input_line.startswith("//#inline"):
         output_lines += self.inline(self.instructor_path(), input_line)
         elide = False
