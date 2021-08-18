@@ -27,46 +27,48 @@ simultaneously.
 datatype ServerGrant = Unlocked | Client(id: nat)
 datatype ClientRecord = Released | Acquired
 
+datatype Constants = Constants(clientCount: nat)
 datatype Variables = Variables(server: ServerGrant, clients: seq<ClientRecord>)
 //#end-elide
 
-predicate Init(v:Variables) {
+predicate Init(c:Constants, v:Variables) {
 //#exercise  true  // Replace me
 //#start-elide
   && v.server.Unlocked?
+  && |v.clients| == c.clientCount
   && forall i | 0 <= i < |v.clients| :: v.clients[i].Released?
 //#end-elide
 }
 
 //#start-elide
-predicate Acquire(v:Variables, v':Variables, id:int) {
+predicate Acquire(c:Constants, v:Variables, v':Variables, id:int) {
   && 0 <= id < |v.clients|
   && v.server.Unlocked?
   && v'.server == Client(id)
-  && |v'.clients| == |v.clients|  // Don't lose track of any clients.
+  && |v'.clients| == |v.clients| == c.clientCount  // Don't lose track of any clients.
   && ( forall i | 0 <= i < |v.clients| ::
       v'.clients[i] == if i == id then Acquired else v.clients[i] )
 }
 
-predicate Release(v:Variables, v':Variables, id:int) {
+predicate Release(c:Constants, v:Variables, v':Variables, id:int) {
   && 0 <= id < |v.clients|
   && v.clients[id].Acquired?
   && v'.server.Unlocked?
-  && |v'.clients| == |v.clients|  // Don't lose track of any clients.
+  && |v'.clients| == |v.clients| == c.clientCount  // Don't lose track of any clients.
   && ( forall i | 0 <= i < |v.clients| ::
       v'.clients[i] == if i == id then Released else v.clients[i] )
 }
 
 //#end-elide
-predicate Next(v:Variables, v':Variables) {
+predicate Next(c:Constants, v:Variables, v':Variables) {
 //#exercise  true  // Replace me
 //#start-elide
-  || ( exists id :: Acquire(v, v', id) )
-  || ( exists id :: Release(v, v', id) )
+  || ( exists id :: Acquire(c, v, v', id) )
+  || ( exists id :: Release(c, v, v', id) )
 //#end-elide
 }
 
-predicate Safety(v:Variables) {
+predicate Safety(c:Constants, v:Variables) {
   // What's a good definition of safety for the lock server? No two clients
   // have the lock simultaneously. Write that here.
 //#exercise  false
