@@ -79,9 +79,10 @@ class Element:
           # what a hackaroo
           and not "library" in line):
           #and not "elide" in line):
-        print("thinking about ", self.path_for_inline(line))
+        #print("thinking about ", self.path_for_inline(line))
         if (self.path_for_inline(line) in self.extra_top_secret_inline_elision_paths):
-          print("top-secret-eliding f{self.path_for_inline(line)}")
+          pass
+          #print("top-secret-eliding f{self.path_for_inline(line)}")
         else:
             output_lines += self.inline(inlinepath, line)
       elif line.startswith("//#"):
@@ -91,7 +92,7 @@ class Element:
     return output_lines
 
   def transform_solution(self):
-    print(f"filename {self.filename}")
+    #print(f"filename {self.filename}")
     if "elide" in self.filename:
       return
     elide = False
