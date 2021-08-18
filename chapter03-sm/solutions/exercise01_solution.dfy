@@ -11,7 +11,7 @@
 // The machine starts empty and has a maximum capacity of 7 cokes. 
 // The machine should support the following actions:
 // Purchase: dispense one coke from the machine
-// Restock: add one coke to the machine
+// Restock: add a number of cokes to the machine
 
 datatype Constants = Constants(capacity:int)
 datatype CokeMachine = CokeMachine(numCokes:int)
