@@ -54,6 +54,10 @@ lemma SortedTreeMeansSortedSequence(tree:Tree)
 {
 }
 
+// Write a recursive implementation that checks if a tree
+// is sorted by checking the children, then using TreeAsSequence
+// on the children to confirm that both children stay on their
+// respective sides of the pivot.
 method CheckIfSortedTree(tree:Tree) returns (sorted:bool)
     ensures sorted <==> IsSortedTree(tree)
 {
