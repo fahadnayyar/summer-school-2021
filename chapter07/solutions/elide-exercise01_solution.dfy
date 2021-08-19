@@ -80,7 +80,7 @@ module MapSpec {
     | InsertLabel(key:Key, value:Value)
     | QueryLabel(key:Key, output:Value)
     // It's okay for a protocol to take "internal" steps that don't reflect a user-visible action.
-    | NoOpLabel
+    | NoopLabel
 
   datatype Variables = Variables(mapp:map<Key, Value>)
 
@@ -127,13 +127,14 @@ module MapSpec {
     match actionLabel
       case InsertLabel(_, _) => InsertOp(v, v', actionLabel)
       case QueryLabel(_, _) => QueryOp(v, v', actionLabel)
-      case NoOpLabel => v' == v
+      case NoopLabel => v' == v
   }
 }
 
 module Implementation {
   import opened Library
   import opened Types
+  import MapSpec
 
   type HostIdx = nat
 
@@ -187,22 +188,31 @@ module Implementation {
         :: v'.maps[otherIdx] == v.maps[otherIdx]) // unchanged other participants
   }
 
+  // At the implementation level, the action is chosen for us by the user
+  // (represented by it being passed in as an argument to Next). We have
+  // some additional nondeterminism, though --
+  // the decision of which host handles the user-visible steps,
+  // and the arguments to TransferStep, which we can justify whenever the user
+  // "lets us" take a NoopStep.
   datatype Step =
-    | InsertStep(idx: HostIdx, key: Key, value: Value)
-    | QueryStep(idx: HostIdx, key: Key, output: Value)
+    | InsertStep(idx: HostIdx)
+    | QueryStep(idx: HostIdx)
     | TransferStep(sendIdx: HostIdx, recvIdx: HostIdx, key: Key, value: Value)
 
-  predicate NextStep(c: Constants, v: Variables, v': Variables, step: Step)
+  predicate NextStep(c: Constants, v: Variables, v': Variables, step: Step, actionLabel: MapSpec.ActionLabel)
   {
     match step
-      case InsertStep(idx, key, value) => Insert(c, v, v', idx, key, value)
-      case QueryStep(idx, key, output) => Query(c, v, v', idx, key, output)
-      case TransferStep(sendIdx, recvIdx, key, value) => Transfer(c, v, v', sendIdx, recvIdx, key, value)
+      case InsertStep(idx)
+        => actionLabel.InsertLabel? && Insert(c, v, v', idx, actionLabel.key, actionLabel.value)
+      case QueryStep(idx)
+        => actionLabel.QueryLabel? && Query(c, v, v', idx, actionLabel.key, actionLabel.output)
+      case TransferStep(sendIdx, recvIdx, key, value)
+        => actionLabel.NoopLabel? && Transfer(c, v, v', sendIdx, recvIdx, key, value)
   }
 
-  predicate Next(c: Constants, v: Variables, v': Variables)
+  predicate Next(c: Constants, v: Variables, v': Variables, actionLabel: MapSpec.ActionLabel)
   {
-    exists step :: NextStep(c, v, v', step)
+    exists step :: NextStep(c, v, v', step, actionLabel)
   }
 }
 
@@ -350,20 +360,20 @@ module RefinementProof {
     reveal_KeysHeldUniquely();
   }
 
-  // Here's an application of returns: we have to prove that there exists a label that justifies
-  // the spec Next. We can prove "exists label ::", or we can just SAY what the label is, in a
-  // return value.
-  lemma InsertPreservesInvAndRefines(c: Constants, v: Variables, v': Variables, insertHost: HostIdx, insertedKey: Key, value: Value) returns (actionLabel: MapSpec.ActionLabel)
+  lemma InsertPreservesInvAndRefines(c: Constants, v: Variables, v': Variables, insertHost: HostIdx, actionLabel: MapSpec.ActionLabel)
     requires Inv(c, v)
-    requires Next(c, v, v')
+    requires Next(c, v, v', actionLabel)
     requires c.ValidHost(insertHost)
-    requires Insert(c, v, v', insertHost, insertedKey, value)
+    requires actionLabel.InsertLabel?
+    requires Insert(c, v, v', insertHost, actionLabel.key, actionLabel.value)
     ensures Inv(c, v')
     ensures MapSpec.Next(Abstraction(c, v), Abstraction(c, v'), actionLabel)
   {
 //#start-elide
     var abstractMap := Abstraction(c, v).mapp;
     var abstractMap' := Abstraction(c, v').mapp;
+    var insertedKey := actionLabel.key;
+    var value := actionLabel.value;
 
     assert insertedKey in AllKeys() by {
       SetsAreSubsetsOfUnion(MapDomains(c, v));
@@ -410,20 +420,21 @@ module RefinementProof {
     assert KnownKeys(c, v') == Types.AllKeys() by {
       assert abstractMap'.Keys == KnownKeys(c, v'); // trigger
     }
-    actionLabel := MapSpec.InsertLabel(insertedKey, value);
-//#elide deleteme    assert MapSpec.Next(Abstraction(c, v), Abstraction(c, v'), actionLabel); // witness
 //#end-elide
   }
 
-  lemma QueryPreservesInvAndRefines(c: Constants, v: Variables, v': Variables, queryHost: HostIdx, key: Key, output: Value) returns (actionLabel: MapSpec.ActionLabel)
+  lemma QueryPreservesInvAndRefines(c: Constants, v: Variables, v': Variables, queryHost: HostIdx, actionLabel: MapSpec.ActionLabel)
     requires Inv(c, v)
-    requires Next(c, v, v')
+    requires Next(c, v, v', actionLabel)
     requires c.ValidHost(queryHost)
-    requires Query(c, v, v', queryHost, key, output)
+    requires actionLabel.QueryLabel?
+    requires Query(c, v, v', queryHost, actionLabel.key, actionLabel.output)
     ensures Inv(c, v')
     ensures MapSpec.Next(Abstraction(c, v), Abstraction(c, v'), actionLabel)
   {
 //#start-elide
+    var key := actionLabel.key;
+    var output := actionLabel.output;
     assert v == v'; // weirdly obvious trigger
     assert Inv(c, v') by { reveal_KeysHeldUniquely(); }
     assert key in KnownKeys(c, v) by { HostKeysSubsetOfKnownKeys(c, v, c.mapCount); }
@@ -431,14 +442,12 @@ module RefinementProof {
       assert HostHasKey(c, v, queryHost, key);  // witness
       reveal_KeysHeldUniquely();
     }
-    actionLabel := MapSpec.QueryLabel(key, output);
-//#elide deleteme    assert MapSpec.Next(Abstraction(c, v), Abstraction(c, v'), actionLabel); // witness
 //#end-elide
   }
 
-  lemma TransferPreservesInvAndRefines(c: Constants, v: Variables, v': Variables, sendIdx: HostIdx, recvIdx: HostIdx, sentKey: Key, value: Value) returns (actionLabel: MapSpec.ActionLabel)
+  lemma TransferPreservesInvAndRefines(c: Constants, v: Variables, v': Variables, sendIdx: HostIdx, recvIdx: HostIdx, sentKey: Key, value: Value, actionLabel: MapSpec.ActionLabel)
     requires Inv(c, v)
-    requires Next(c, v, v')
+    requires Next(c, v, v', actionLabel)
     requires c.ValidHost(sendIdx)
     requires c.ValidHost(recvIdx)
     requires Transfer(c, v, v', sendIdx, recvIdx, sentKey, value)
@@ -501,32 +510,35 @@ module RefinementProof {
       assert KnownKeys(c, v') == Abstraction(c, v').mapp.Keys;  // trigger
       assert KnownKeys(c, v) == Abstraction(c, v).mapp.Keys;    // trigger
     }
-    actionLabel := MapSpec.NoOpLabel;
- //#elide   assert MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.Step(MapSpec.NoOpLabel)); // witness
+ //#elide   assert MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.Step(MapSpec.NoopLabel)); // witness
 //#end-elide
   }
 
-  // By reading this lemma's signature, the "code reviewer" can confirm that whenever the
-  // protocol says it's doing an Insert, it has to refine to an Insert step in the spec.
-  lemma NextPreservesInvAndRefines(c: Constants, v: Variables, v': Variables) returns (actionLabel: MapSpec.ActionLabel)
+  // By reading this lemma's signature, the "code reviewer" can confirm that
+  // whenever the protocol says it's doing an Insert, it has to refine to an
+  // Insert step in the spec.  Next takes an actionLabel -- the trusted part of
+  // the system decides what action the user wants to happen in a given step,
+  // and the protocol implementation is forced to honor that action because it
+  // must refine not just to MapSpec.Next(), but MapSpec.Next(...actionLabel).
+  lemma NextPreservesInvAndRefines(c: Constants, v: Variables, v': Variables, actionLabel: MapSpec.ActionLabel)
     requires Inv(c, v)
-    requires Next(c, v, v')
+    requires Next(c, v, v', actionLabel)
     ensures Inv(c, v')
     ensures MapSpec.Next(Abstraction(c, v), Abstraction(c, v'), actionLabel)
   {
     // Use InsertPreservesInvAndRefines, QueryPreservesInvAndRefines, and
     // TransferPreservesInvAndRefines here to complete this proof.
 //#start-elide
-    var step :| NextStep(c, v, v', step);
+    var step :| NextStep(c, v, v', step, actionLabel);
     match step
-      case InsertStep(idx, key, value) => {
-        actionLabel := InsertPreservesInvAndRefines(c, v, v', idx, key, value);
+      case InsertStep(idx) => {
+        InsertPreservesInvAndRefines(c, v, v', idx, actionLabel);
       }
-      case QueryStep(idx, key, output) => {
-        actionLabel := QueryPreservesInvAndRefines(c, v, v', idx, key, output);
+      case QueryStep(idx) => {
+        QueryPreservesInvAndRefines(c, v, v', idx, actionLabel);
       }
       case TransferStep(sendIdx, recvIdx, key, value) => {
-        actionLabel := TransferPreservesInvAndRefines(c, v, v', sendIdx, recvIdx, key, value);
+        TransferPreservesInvAndRefines(c, v, v', sendIdx, recvIdx, key, value, actionLabel);
       }
 //#end-elide
   }
