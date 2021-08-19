@@ -21,18 +21,32 @@ The safety property is that no two clients ever hold the lock
 simultaneously.
 */
 
-//#exercisedatatype Constants = Constants(/* You define this ...*/)
-//#exercisedatatype Variables = Variables(/* You define this ...*/)
+//#exercisedatatype Constants = Constants(/* You define this ...*/) {
+//#exercise  predicate WF() { true }
+//#exercise}
+//#exercisedatatype Variables = Variables(/* You define this ...*/) {
+//#exercise  predicate WF(c: Constants) { true }
+//#exercise}
 //#start-elide
 datatype ServerGrant = Unlocked | Client(id: nat)
 datatype ClientRecord = Released | Acquired
 
-datatype Constants = Constants(clientCount: nat)
-datatype Variables = Variables(server: ServerGrant, clients: seq<ClientRecord>)
+datatype Constants = Constants(clientCount: nat) {
+  predicate WF() { true }
+  predicate ValidIdx(idx: int) {
+    0 <= idx < clientCount
+  }
+}
+datatype Variables = Variables(server: ServerGrant, clients: seq<ClientRecord>) {
+  predicate WF(c: Constants) {
+    |clients| == c.clientCount
+  }
+}
 //#end-elide
 
 predicate Init(c:Constants, v:Variables) {
-//#exercise  true  // Replace me
+  && v.WF(c)
+//#exercise  && true  // Replace me
 //#start-elide
   && v.server.Unlocked?
   && |v.clients| == c.clientCount
@@ -42,30 +56,46 @@ predicate Init(c:Constants, v:Variables) {
 
 //#start-elide
 predicate Acquire(c:Constants, v:Variables, v':Variables, id:int) {
-  && 0 <= id < |v.clients|
+  && v.WF(c)
+  && v'.WF(c)
+  && c.ValidIdx(id)
+
   && v.server.Unlocked?
+
   && v'.server == Client(id)
-  && |v'.clients| == |v.clients| == c.clientCount  // Don't lose track of any clients.
-  && ( forall i | 0 <= i < |v.clients| ::
-      v'.clients[i] == if i == id then Acquired else v.clients[i] )
+  && v'.clients == v.clients[id := Acquired]
 }
 
 predicate Release(c:Constants, v:Variables, v':Variables, id:int) {
-  && 0 <= id < |v.clients|
+  && v.WF(c)
+  && v'.WF(c)
+  && c.ValidIdx(id)
+
   && v.clients[id].Acquired?
+
   && v'.server.Unlocked?
-  && |v'.clients| == |v.clients| == c.clientCount  // Don't lose track of any clients.
-  && ( forall i | 0 <= i < |v.clients| ::
-      v'.clients[i] == if i == id then Released else v.clients[i] )
+  && v'.clients == v.clients[id := Released]
 }
 
 //#end-elide
-predicate Next(c:Constants, v:Variables, v':Variables) {
-//#exercise  true  // Replace me
+datatype Step =
+//#exercise  | SomeStep(somearg: int)   // Replace me
 //#start-elide
-  || ( exists id :: Acquire(c, v, v', id) )
-  || ( exists id :: Release(c, v, v', id) )
+  | AcquireStep(id: int)
+  | ReleaseStep(id: int)
 //#end-elide
+
+predicate NextStep(c:Constants, v:Variables, v':Variables, step: Step) {
+  match step
+//#exercise  case SomeStep(somearg) => false  // Replace me
+//#start-elide
+    case AcquireStep(id) => Acquire(c, v, v', id)
+    case ReleaseStep(id) => Release(c, v, v', id)
+//#end-elide
+}
+
+predicate Next(c:Constants, v:Variables, v':Variables) {
+  exists step :: NextStep(c, v, v', step)
 }
 
 predicate Safety(c:Constants, v:Variables) {
