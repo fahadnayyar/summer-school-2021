@@ -1,2 +1,2 @@
 #!/bin/bash
-/home/dafnyserver/.dafny/dafny/Binaries/Dafny /compile:0 /noNLarith $*
+/home/dafnyserver/.dafny/dafny/Binaries/Dafny /compile:0 $*
