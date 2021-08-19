@@ -1,7 +1,6 @@
 //#title Synchronous KV Store
 //#desc Build a refinement from a protocol (distributed sharded state) to
 //#desc a specification (a logically-centralized abstract map).
-//#desc TODO Conform to 2PC abstract proof obligation structure.
 
 // "Synchronous" means network messages are delivered instantaneously -- we
 // keep the challenge simpler here by pretending messages can be sent and
@@ -494,6 +493,8 @@ module RefinementProof {
     ensures Inv(c, v')
     ensures MapSpec.Next(Abstraction(c, v), Abstraction(c, v'))
   {
+    // Use InsertPreservesInvAndRefines, QueryPreservesInvAndRefines, and
+    // TransferPreservesInvAndRefines here to complete this proof.
 //#start-elide
     var step :| NextStep(c, v, v', step);
     match step
