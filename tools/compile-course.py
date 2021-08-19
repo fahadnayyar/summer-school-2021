@@ -214,6 +214,8 @@ class Catalog:
         if element.chapter != chapter:
           chapter = element.chapter
           fp.write(f"## {chapter}\n\n")
+        if "elide" in element.filename:
+          continue
         fp.write(element.md_catalog_row())
 
   def test_elements(self):
