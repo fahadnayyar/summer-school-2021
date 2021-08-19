@@ -1,0 +1,35 @@
+Well-Formed predicates
+* some people introduced these independently -- hooray!
+* What are they?
+  - an "extension of the type" -- we'll never hold an instance of Variables
+    that's not also WF, so we can require WF everywhere
+  -  reduces/centralizes boilerplate
+  - easy-to-prove properties -- if it's hard to establish (like a rich invariant), then you can't use all the predicates that rely on it.
+  - there's actually a way to add these predicates to the datatype
+    but no WF(c)
+    dafny crashes
+Typical examples
+length constraints on sequences, or indices fit into a sequence length
+domains of maps (same idea)
+
+ex01
+* if you used Jay Normal Form
+  -- kudos!
+  -- but you probably had to edit the Nontrivial lemmas
+
+ex02
+* normalization
+  -- if you can avoid it, don't represent something redundantly and
+  then have a proof burden that you do so consistently.
+  Same principle in databases: represent your data with the simplest
+  possible relation, then "let the query engine sort out performance".
+  (Of course, if the redundancy is fundamental to the protocol you're
+  trying to define, that's fine.)
+  -- avoid modeling left hand + right hand + chopstick all separately
+  -- my solution could be improved on this axis: one three-state chopstick
+    Did anybody try it?
+
+ex03
+  -- the big challenge here is that you had to select a level of detail
+  to model at. The english text tried to guide you, but ... deciding
+  level of abstraction is a key component of this skill.

@@ -1,0 +1,73 @@
+Use state machines to build a standard pattern.
+
+animations tying text to graphics
+
+3 types of things:
+  Host is summary of program we want to write & verify
+  Network models how the hosts are allowed to communicate
+  Distributed system how the components interleave and interact
+
+Next predicate:
+  One host takes a step
+  ALL the other hosts don't take a step
+    hosts can't communicate directly
+    nondeterministic interleaving: no round-robin scheduling
+  Network
+    binding variables, host & network agree.
+    glue between state machines
+    think of this adversarially:
+      host author wishes they could communicate atomically with zero latency
+      network author explains what's actually allowed
+    in-vs-out predicate parameters
+    callback to synchronous interactions in ch04/ex02 lock service
+    [alin asked about modeling network addresses]
+  You can see from this composition of state machines that there is
+  ONLY ONE WAY hosts can communicate.
+
+Modeling crash-and-restart
+  - the pattern: Distributed System models the constraints of the
+    environment and how the built system interacts with it.
+
+Time
+  Spent a lot of time modeling the network in the middle, and we could go a
+  long way with that, but there are other interesting models.  What if we
+  wanted to model Google's Spanner or a system with leases?  Both kinds of
+  systems exploit the idea that hosts can communicate with time.
+
+  Time module advance some global model of time, but also captures the idea
+  that hosts might see a "noisy" view.
+
+  Note how we're using nondeterminism to allow the timeline to stretch
+  and shrink depending on if hosts are sluggish.
+
+  Time.Advance is nondeterministic. Time module might promise that time
+  doesn't go backwards, but is otherwise free to let it run at varying
+  rates.
+
+What if we want to model a file system?
+The salient features are an asynchronous I/O bus and unexpected crashes
+-- nondeterministic interactions between the parts we assume and the
+code we're building.
+
+Separation of what we can assume versus what we're trying to verify.
+Trusted stuff might give, might take away
+
+Bread
+- You have to READ the top bread: what application does the system implement?
+- You have to READ the bottom bread: what assumptions does the env give us?
+- You DON'T have to read anything in the middle: HOW does the program
+  achieve the application spec?
+* When people say "verification's great, it eliminates bugs" they mean
+"it eliminates bugs in the filling".
+* The thicker the sandwich, the better the deal you're getting.
+  Database on top, file system on the bottom
+  Storage application on top, paxos state machine on bottom
+
+Byzantine
+  - we *could* model n-f correct hosts and f "byz" hosts -- but then
+  the protocol can tell which f are byz.
+  - another way: there's a "secret" parameter in the DS that only the
+    proof can see that says which hosts are faulty
+    If it is, there are NO CONSTRAINTS on what that host can do.
+  - DistributedSystem can give the proof a promise that the count of
+    byzHosts bits is bounded
