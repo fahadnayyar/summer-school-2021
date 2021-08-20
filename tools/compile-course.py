@@ -221,7 +221,7 @@ class Catalog:
 
   def gather_elements(self):
     self.elements = collections.defaultdict(lambda: collections.defaultdict(set))
-    for path in glob.glob(instructor_dir+"/chapter*/*/*"):
+    for path in glob.glob(instructor_dir+"/chapter*/*/*") + glob.glob(instructor_dir+"/*-project/*/*"):
       suffix = path[len(instructor_dir)+1:]
       element = Element(*suffix.split("/"))
       self.elements[element.chapter][element.type].add(element)

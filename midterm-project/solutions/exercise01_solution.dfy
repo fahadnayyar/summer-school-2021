@@ -1,24 +1,38 @@
-//Your goal is to build a distributed lock server. This challenge differs from
-//LockServer in two ways. First, there is no central server that coordinates
-//the activity. Second, the hosts can communicate only via asynchronous
-//messages; a single state machine transition cannot simultaneously read or
-//update the state of two hosts.
-//
-//To guard against duplicate messages, the nodes associate a monotonically
-//increasing epoch number with the lock. Initially, node 0 holds the lock and
-//its epoch number is 1. A node that holds the lock can “grant” it to another
-//node by sending them a “Grant” message which has an epoch number that is
-//greater than the node's epoch number. A node that receives such a message
-//will become the new holder and will set its epoch number to the message’v
-//epoch number.  
+//#title Midterm Project
+//#desc Build a distributed lock server. Define your protocol in protocol.i;
+//#desc write your safety spec and proof here.
+
+// This challenge differs from LockServer in two ways. First, there is no
+// central server that coordinates the activity. Second, the hosts can
+// communicate only via asynchronous messages; a single state machine
+// transition cannot simultaneously read or update the state of two hosts.
+// 
+// To guard against duplicate messages, the nodes associate a monotonically
+// increasing epoch number with the lock. Initially, node 0 holds the lock and
+// its epoch number is 1. A node that holds the lock can “grant” it to another
+// node by sending them a “Grant” message which has an epoch number that is
+// greater than the node's epoch number. A node that receives such a message
+// will become the new holder and will set its epoch number to the message’v
+// epoch number.  
+
+// You'll first need to modify 'protocol.i.dfy' to define the protocol message
+// format and the host behavior.
+// Then come back here define the safety condition and prove that the
+// distributed system made from that protocol maintains it.
 
 include "distributed_system.s.dfy"
 
+// the lock simulatneously.
 predicate Safety(v:DistVars) {
+//#exercise  false // Replace this placeholder with an appropriate safety condition: no two clients hold
+//#start-elide
   && WFVars(v)
   && forall i, j :: v.hosts[i].holdsLock && v.hosts[j].holdsLock ==> i == j
+//#end-elide
 }
 
+// TODO XXX should we give some signatures below as hints?
+//#start-elide
 predicate InFlight(v:DistVars, message:Message) {
   && WFVars(v)
   && message in v.network.messagesEverSent
@@ -50,7 +64,11 @@ predicate LockHolderHasFreshestEpoch(v:DistVars)
     (forall oid :: oid!=id ==> v.hosts[oid].epoch < v.hosts[id].epoch)
 }
 
+//#end-elide
+
 predicate Inv(v:DistVars) {
+//#exercise  true // Replace this placeholder with an invariant that's inductive and supports Safety.
+//#start-elide
   && WFVars(v)
 
   // There are never two messages in flight.
@@ -67,6 +85,7 @@ predicate Inv(v:DistVars) {
   && LockHolderHasFreshestEpoch(v)
 
   && Safety(v)
+//#end-elide
 }
 
 lemma SafetyProof()
@@ -74,6 +93,7 @@ lemma SafetyProof()
   ensures forall v, v' :: Inv(v) && DistNext(v, v') ==> Inv(v')
   ensures forall v :: Inv(v) ==> Safety(v)
 {
+//#start-elide
   forall v, v' | Inv(v) && DistNext(v, v') ensures Inv(v') {
     var id, a :| NextStep(v, v', id, a);
     if DoAccept(id, v.hosts[id], v'.hosts[id], a) {
@@ -89,4 +109,5 @@ lemma SafetyProof()
       assert Inv(v'); // observe
     }
   }
+//#end-elide
 }

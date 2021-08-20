@@ -1,3 +1,33 @@
+//#title Final Project
+//#desc Design a Sharded Hash Table (SHT) protocol and prove it is correct.
+
+// XXX TODO right now we don't give students ANYTHING about the trusted framework.
+// That feels like too little -- we're not trying to teach people to construct new
+// trusted frameworks, since the same basic framework can be reused in many settings.
+
+// The SHT should consist of a number of nodes storing key-value pairs.
+// There are no external clients; the nodes perform Get()'s and Put()'s on the keys directly.
+// A node can only perform a Get or Put on a key it owns.
+// Each key is owned by exactly one node.
+// A node can transfer ownership of a set of keys (a.k.a. shard) to another node by sending it a TransferMessage that is delivered asynchronously (i.e. as part of a different state transition)
+// All actions should be defined at the protocol level (i.e. as predicates) and not as imperative methods.
+//
+// The entire application should behave like a logically centralized hash table.
+
+// You should assume that the network delivers packets at-most-once so you don't
+// have to deal with the duplicate-defeating epoch number mechanism from
+// the midterm (chapter06) exercise. hints/hint00 provides the necessary
+// changes to network.s.dfy file, if you are uncomfortable trying to make that
+// change yourself.
+
+// Here are some handy library functions that you may find useful for
+// manipulating maps.
+//
+// You may recall that, in some lecture examples, we
+// refined a hash table to a map, and then a sharded hash table to a map.
+// Your protocol doesn't NOT need to build a linear-probing hash table --
+// the local state on each Host may be a Dafny map<>.
+
 module Base {
   function ZeroMap() : imap<int,int>
   {
@@ -39,6 +69,7 @@ module Base {
 
 }
 
+//#start-elide
 //////////////////////////////////////////////////////////////////////////////
 // Application spec
 
@@ -610,3 +641,4 @@ module RefinementProof refines RefinementTheorem {
     }
   }
 }
+//#end-elide
