@@ -131,7 +131,11 @@ module MapSpec {
   }
 }
 
-module Implementation {
+module ProtocolFramework {
+  predicate Next(c: Constants, v: Variables, v': Variables, actionLabel: MapSpec.ActionLabel)
+}
+
+module Protocol refines ProtocolFramework {
   import opened Library
   import opened Types
   import MapSpec
@@ -522,7 +526,7 @@ module RefinementProof {
   // must refine not just to MapSpec.Next(), but MapSpec.Next(...actionLabel).
   lemma NextPreservesInvAndRefines(c: Constants, v: Variables, v': Variables, actionLabel: MapSpec.ActionLabel)
     requires Inv(c, v)
-    requires Next(c, v, v', actionLabel)
+    requires Next(c, v, v', actionLabel)  // declared in ProtocolFramework
     ensures Inv(c, v')
     ensures MapSpec.Next(Abstraction(c, v), Abstraction(c, v'), actionLabel)
   {
