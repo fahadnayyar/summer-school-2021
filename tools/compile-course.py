@@ -75,10 +75,10 @@ class Element:
   def inline(self, including_path, line, duplicate_detector):
     inlinefile = self.path_for_inline(line)
     if inlinefile in duplicate_detector:
-      print(f"  rejecting duplicate {inlinefile}")
+      #print(f"  rejecting duplicate {inlinefile}")
       return []
     inlinepath = os.path.join(os.path.dirname(including_path), inlinefile)
-    print(f" inline file {inlinefile} from {including_path} with dupset {duplicate_detector}")
+    #print(f" inline file {inlinefile} from {including_path} with dupset {duplicate_detector}")
     lines = [line.rstrip() for line in open(inlinepath).readlines()]
     output_lines = []
     for line in lines:
@@ -87,7 +87,7 @@ class Element:
           and not "library" in line):
           #and not "elide" in line):
         #print("thinking about ", inlinefile)
-        print(f"  inlining from {inlinefile}, dupset now {duplicate_detector}")
+        #print(f"  inlining from {inlinefile}, dupset now {duplicate_detector}")
         output_lines += self.inline(inlinepath, line, duplicate_detector)
         duplicate_detector.add(inlinefile)
       elif line.startswith("//#"):
@@ -97,7 +97,7 @@ class Element:
     return output_lines
 
   def transform_solution_to_exercise(self):
-    print(f"chapter {self.chapter} filename {self.filename}")
+    #print(f"chapter {self.chapter} filename {self.filename}")
     duplicate_detector = set()
     elide = False
     input_lines = [line.rstrip() for line in open(self.instructor_path()).readlines()]
@@ -121,10 +121,10 @@ class Element:
         output_line = None
       elif input_line.startswith("//#excludefrominline"):
         exclude = input_line.split()[-1]
-        print(f"- excludefrominline {exclude}")
+        #print(f"- excludefrominline {exclude}")
         duplicate_detector.add(exclude)
       elif "//#magicinclude" in input_line:
-        print("  yo bro", input_line, "dd", duplicate_detector)
+        #print("  yo bro", input_line, "dd", duplicate_detector)
         output_lines += self.inline(self.instructor_path(), input_line, duplicate_detector)
         output_line = None
       elif input_line.startswith("//#inline"):
@@ -140,7 +140,7 @@ class Element:
 
   # haaaaack party
   def transform_solution_to_published_solution(self):
-    print(f"solns-chapter {self.chapter} filename {self.filename}")
+    #print(f"solns-chapter {self.chapter} filename {self.filename}")
     def fixup_solution_include(include_line):
       include_path = re.compile('include "(.*)"').search(include_line).groups()[0]
       new_path = include_path.replace("/solutions/", "/exercises/").replace("_solution.", ".")
@@ -160,10 +160,10 @@ class Element:
         continue
       elif input_line.startswith("//#excludefrominline"):
         exclude = input_line.split()[-1]
-        print(f"- excludefrominline {exclude}")
+        #print(f"- excludefrominline {exclude}")
         duplicate_detector.add(exclude)
       elif "//#magicinclude" in input_line:
-        print("  yo bro", input_line)
+        #print("  yo bro", input_line)
         output_lines += self.inline(self.instructor_path(), input_line, duplicate_detector)
         output_line = None
       elif input_line.startswith("include"):
@@ -271,8 +271,7 @@ class Catalog:
 
   def test_elements(self):
     results = []
-    #XXX
-    verify = False
+    verify = True
     def test_elt(elt, results):
       results+=elt.test_dafny(elt.instructor_path, verify)
       results+=elt.test_dafny(elt.solution_path, verify)
