@@ -191,14 +191,21 @@ class Element:
   def test_dafny(self, pathfn, verify):
     if not self.is_dafny_source():
       return []
+    if "impl_model_for_ex04" in self.filename:
+      # Hacky special case: This file is only meant to be included in a
+      # particular way by others, and has no interesting content, and due
+      # to wacky inline/include rules, it doesn't have access to the
+      # CommitTypes module until it's included elsewhere. So skip it.
+      return []
     path = pathfn()
     verifyFlag = ["/noVerify"] if not verify else []
     cmd = ["dafny"] + verifyFlag + ["/compile:0", "/vcsCores:6", "/timeLimit:5", path]
     print(f"  -- {' '.join(cmd)}")
-    if "midterm" in path: #XXX TODO skipping to final
-        return [(self, subprocess.call(cmd)==0)]
-    else:
-        return [(self, True)]
+    return [(self, subprocess.call(cmd)==0)]
+#    if "midterm" in path: #XXX TODO skipping to final
+#        return [(self, subprocess.call(cmd)==0)]
+#    else:
+#        return [(self, True)]
 
   def extract_docs(self):
     input_lines = [line.rstrip() for line in open(self.instructor_path()).readlines()]
@@ -300,13 +307,18 @@ class Catalog:
       mkdir_and_copy(in_path, os.path.join(student_dir, suffix))
       mkdir_and_copy(in_path, os.path.join(solutions_dir, suffix))
 
+  def compile(self):
+    self.compile_elements()
+    self.build_catalog()
+    self.copy_library()
+
 def main():
+  catalog = Catalog()
   action = sys.argv[1] if len(sys.argv)==2 else "compile"
   if action=="compile":
-    Catalog().compile_elements()
-    Catalog().build_catalog()
-    Catalog().copy_library()
+    catalog.compile()
   elif action=="test":
+    catalog.compile()
     Catalog().test_elements()
   else:
     print("Invalid verb.")

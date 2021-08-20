@@ -21,7 +21,7 @@ function TurnRight(direction:Direction) : Direction
 
 lemma Rotation()
 {
-  assert TurnRight(North) == West;
+  assert TurnRight(North) == East;
 }
 
 function TurnLeft(direction:Direction) : Direction

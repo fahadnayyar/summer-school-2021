@@ -22,92 +22,110 @@
 
 include "distributed_system.s.dfy"
 
-// the lock simulatneously.
-predicate Safety(v:DistVars) {
-//#exercise  false // Replace this placeholder with an appropriate safety condition: no two clients hold
+module SafetySpec {
+  import opened HostIdentifiers
+  import DistributedSystem
+
+  // No two hosts think they hold the lock simulatneously.
+  predicate Safety(c:DistributedSystem.Constants, v:DistributedSystem.Variables) {
+//#exercise    false // Replace this placeholder with an appropriate safety condition: no two clients hold
 //#start-elide
-  && WFVars(v)
-  && forall i, j :: v.hosts[i].holdsLock && v.hosts[j].holdsLock ==> i == j
+    && v.WF(c)
+    && (forall i, j
+        | ValidHostId(i) && ValidHostId(j) && v.hosts[i].holdsLock && v.hosts[j].holdsLock
+        :: i == j
+      )
 //#end-elide
-}
-
-// TODO XXX should we give some signatures below as hints?
-//#start-elide
-predicate InFlight(v:DistVars, message:Message) {
-  && WFVars(v)
-  && message in v.network.messagesEverSent
-  && message.epoch > v.hosts[message.dest].epoch
-}
-
-predicate UniqueMessageInFlight(v:DistVars) {
-  forall m1, m2 :: InFlight(v, m1) && InFlight(v, m2) ==> m1 == m2
-}
-
-predicate InFlightPrecludesLockHeld(v:DistVars) {
-  forall m :: InFlight(v, m) ==> (forall id :: !v.hosts[id].holdsLock)
-}
-
-predicate InFlightHasFreshestEpoch(v:DistVars) {
-  forall m :: InFlight(v, m) ==> (forall id :: v.hosts[id].epoch < m.epoch)
-}
-
-predicate LockHolderPrecludesInFlight(v:DistVars)
-  requires WFVars(v)
-{
-  forall id :: v.hosts[id].holdsLock ==> (forall m :: !InFlight(v, m))
-}
-
-predicate LockHolderHasFreshestEpoch(v:DistVars)
-  requires WFVars(v)
-{
-  forall id :: v.hosts[id].holdsLock ==>
-    (forall oid :: oid!=id ==> v.hosts[oid].epoch < v.hosts[id].epoch)
-}
-
-//#end-elide
-
-predicate Inv(v:DistVars) {
-//#exercise  true // Replace this placeholder with an invariant that's inductive and supports Safety.
-//#start-elide
-  && WFVars(v)
-
-  // There are never two messages in flight.
-  && UniqueMessageInFlight(v)
-
-  // If a message is flight, no client holds the lock, and
-  // the message has the freshest epoch number.
-  && InFlightPrecludesLockHeld(v)
-  && InFlightHasFreshestEpoch(v)
-
-  // If a clent holds the lock, no message is in flight, and
-  // the client has the freshest epoch number.
-  && LockHolderPrecludesInFlight(v)
-  && LockHolderHasFreshestEpoch(v)
-
-  && Safety(v)
-//#end-elide
-}
-
-lemma SafetyProof()
-  ensures forall v :: DistInit(v) ==> Inv(v)
-  ensures forall v, v' :: Inv(v) && DistNext(v, v') ==> Inv(v')
-  ensures forall v :: Inv(v) ==> Safety(v)
-{
-//#start-elide
-  forall v, v' | Inv(v) && DistNext(v, v') ensures Inv(v') {
-    var id, a :| NextStep(v, v', id, a);
-    if DoAccept(id, v.hosts[id], v'.hosts[id], a) {
-      assert UniqueMessageInFlight(v);  // observe
-      assert forall m | InFlight(v', m) :: InFlight(v, m);  // observe
-      forall m ensures !InFlight(v', m) {
-        assert InFlight(v, a.rcv.value);  // observe
-        assert !InFlight(v', a.rcv.value);  // observe
-      }
-      assert Inv(v'); // observe
-    } else {
-      var recipient :| DoGrant(v.hosts[id], v'.hosts[id], a, recipient); // observe
-      assert Inv(v'); // observe
-    }
   }
+}
+
+module Proof {
+  import opened HostIdentifiers
+  import Host
+  import opened DistributedSystem
+  import opened SafetySpec
+
+  // TODO XXX should we give some signatures below as hints?
+//#start-elide
+  predicate InFlight(c:Constants, v:Variables, message:Host.Message) {
+    && v.WF(c)
+    && message in v.network.sentMsgs
+    && ValidHostId(message.dest)
+    && message.epoch > v.hosts[message.dest].epoch
+  }
+
+  predicate UniqueMessageInFlight(c: Constants, v:Variables) {
+    forall m1, m2 :: InFlight(c, v, m1) && InFlight(c, v, m2) ==> m1 == m2
+  }
+
+  predicate InFlightPrecludesLockHeld(c: Constants, v:Variables) {
+    forall m :: InFlight(c, v, m) ==> (forall id | ValidHostId(id) :: !v.hosts[id].holdsLock)
+  }
+
+  predicate InFlightHasFreshestEpoch(c: Constants, v:Variables) {
+    forall m :: InFlight(c, v, m) ==> (forall id | ValidHostId(id) :: v.hosts[id].epoch < m.epoch)
+  }
+
+  predicate LockHolderPrecludesInFlight(c: Constants, v:Variables)
+    requires v.WF(c)
+  {
+    forall id | ValidHostId(id) && v.hosts[id].holdsLock
+      :: (forall m :: !InFlight(c, v, m))
+  }
+
+  predicate LockHolderHasFreshestEpoch(c: Constants, v:Variables)
+    requires v.WF(c)
+  {
+    forall id | ValidHostId(id) && v.hosts[id].holdsLock
+      :: (forall oid | ValidHostId(oid) && oid!=id :: v.hosts[oid].epoch < v.hosts[id].epoch)
+  }
+
 //#end-elide
+
+  predicate Inv(c: Constants, v:Variables) {
+//#exercise    true // Replace this placeholder with an invariant that's inductive and supports Safety.
+//#start-elide
+    && v.WF(c)
+
+    // There are never two messages in flight.
+    && UniqueMessageInFlight(c, v)
+
+    // If a message is flight, no client holds the lock, and
+    // the message has the freshest epoch number.
+    && InFlightPrecludesLockHeld(c, v)
+    && InFlightHasFreshestEpoch(c, v)
+
+    // If a clent holds the lock, no message is in flight, and
+    // the client has the freshest epoch number.
+    && LockHolderPrecludesInFlight(c, v)
+    && LockHolderHasFreshestEpoch(c, v)
+
+    && Safety(c, v)
+//#end-elide
+  }
+
+  lemma SafetyProof(c: Constants, v:Variables, v':Variables)
+    ensures Init(c, v) ==> Inv(c, v)
+    ensures Inv(c, v) && Next(c, v, v') ==> Inv(c, v')
+    ensures Inv(c, v) ==> Safety(c, v)
+  {
+    // Develop any necessary proof here.
+//#start-elide
+    forall v, v' | Inv(c, v) && Next(c, v, v') ensures Inv(c, v') {
+      var step :| NextStep(c, v, v', step);
+      if Host.DoAccept(c.hosts[step.id], v.hosts[step.id], v'.hosts[step.id], step.msgOps) {
+        assert UniqueMessageInFlight(c, v);  // observe
+        assert forall m | InFlight(c, v', m) :: InFlight(c, v, m);  // observe
+        forall m ensures !InFlight(c, v', m) {
+          assert InFlight(c, v, step.msgOps.recv.value);  // observe
+          assert !InFlight(c, v', step.msgOps.recv.value);  // observe
+        }
+        assert Inv(c, v'); // observe
+      } else {
+        var recipient :| Host.DoGrant(c.hosts[step.id], v.hosts[step.id], v'.hosts[step.id], step.msgOps, recipient); // observe
+        assert Inv(c, v'); // observe
+      }
+    }
+//#end-elide
+  }
 }
