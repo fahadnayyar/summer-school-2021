@@ -17,6 +17,7 @@ include "../../chapter03-sm/solutions/exercise03_solution.dfy"
 // we need to ensure the server doesn't fall out of sync with the clients'
 // beliefs.
 predicate ServerAgreesClients(c:Constants, v:Variables) {
+  // Manos: if we make the line below a one-way implication, we don't need a proof below
   v.server.Unlocked? <==> (forall id | 0 <= id < |v.clients| :: v.clients[id].Released?)
 }
 
