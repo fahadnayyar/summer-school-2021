@@ -2,6 +2,13 @@
 //#desc Model a distributed protocol using compound state machines.
 
 /*
+ * Your goal is to model a 2-Phase Commit protocol. You're modeling a single
+ * instance of the problem -- a designated coordinator, no concurrent
+ * instances. Furthermore, you may assume there are no coordinator or
+ * participant failures. This is indeed a fairly simplistic setting, but it's
+ * still nontrivial, and is a nice example for reasoning about the
+ * state-machine composition framework.
+ *
  * 2-Phase Commit Protocol english design doc:
  *
  * 1, Coordinator sends VOTE-REQ to all participants.
@@ -350,7 +357,7 @@ module Host {
   {
     // constants & variables are well-formed (same number of host slots as constants expect)
     && GroupWF(grp_c, grp_v)
-    // Coordinator is inittid to know about the N-1 participants.
+    // Coordinator is initialized to know about the N-1 participants.
     && CoordinatorHost.Init(Last(grp_c).coordinator, Last(grp_v).coordinator)
     // Participants initted with their ids.
     && (forall hostid:HostId | hostid < |grp_c|-1 ::
