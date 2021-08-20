@@ -123,10 +123,13 @@ class Element:
         exclude = input_line.split()[-1]
         #print(f"- excludefrominline {exclude}")
         duplicate_detector.add(exclude)
-      elif "//#magicinclude" in input_line:
+        output_line = None
+      elif "//#magicinline" in input_line:
         #print("  yo bro", input_line, "dd", duplicate_detector)
         output_lines += self.inline(self.instructor_path(), input_line, duplicate_detector)
         output_line = None
+      elif "//#magicinclude" in input_line:
+        output_line = self.fixup_solution_include(input_line)
       elif input_line.startswith("//#inline"):
         output_lines += self.inline(self.instructor_path(), input_line, duplicate_detector)
         output_line = None
@@ -138,14 +141,14 @@ class Element:
     open(self.exercise_path(), "w").write(''.join([line+"\n" for line in output_lines]))
     #print(f"Generated {self.exercise_path()}")
 
+  def fixup_solution_include(self, include_line):
+    include_path = re.compile('include "(.*)"').search(include_line).groups()[0]
+    new_path = include_path.replace("/solutions/", "/exercises/").replace("_solution.", ".")
+    return f'include "{new_path}"'
+
   # haaaaack party
   def transform_solution_to_published_solution(self):
     #print(f"solns-chapter {self.chapter} filename {self.filename}")
-    def fixup_solution_include(include_line):
-      include_path = re.compile('include "(.*)"').search(include_line).groups()[0]
-      new_path = include_path.replace("/solutions/", "/exercises/").replace("_solution.", ".")
-      return f'include "{new_path}"'
-
     duplicate_detector = set()
     input_lines = [line.rstrip() for line in open(self.instructor_path()).readlines()]
     output_lines = []
@@ -162,12 +165,12 @@ class Element:
         exclude = input_line.split()[-1]
         #print(f"- excludefrominline {exclude}")
         duplicate_detector.add(exclude)
-      elif "//#magicinclude" in input_line:
+      elif "//#magicinline" in input_line:
         #print("  yo bro", input_line)
         output_lines += self.inline(self.instructor_path(), input_line, duplicate_detector)
         output_line = None
-      elif input_line.startswith("include"):
-        output_line = fixup_solution_include(input_line)
+      elif "//#magicinclude" in input_line:
+        output_line = self.fixup_solution_include(input_line)
       if output_line!=None:
         output_lines.append(output_line)
     mkdirs(self.solution_path())

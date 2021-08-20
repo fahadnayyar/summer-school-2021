@@ -6,4 +6,4 @@
 // proof from here as well.
 // 
 //#excludefrominline elide-types.dfy
-include "../../chapter05-dsm/solutions/exercise03_solution.dfy" //#magicinclude
+include "../../chapter05-dsm/solutions/exercise03_solution.dfy" //#magicinline

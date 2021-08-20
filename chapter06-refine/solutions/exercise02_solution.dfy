@@ -27,7 +27,7 @@
  */
 
 include "../../library/Library.dfy"
-include "../../chapter05-dsm/solutions/elide-types.dfy" //#magicinclude
+include "../../chapter05-dsm/solutions/elide-types.dfy" //#magicinline
 
 // This is the specification state machine. It defines what the implementation
 // is trying to accomplish, while ignoring all implementation details.
