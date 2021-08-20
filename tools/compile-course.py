@@ -13,6 +13,7 @@ script_dir = os.path.dirname(__file__)
 instructor_dir = os.path.relpath(os.path.join(script_dir, ".."))
 #print(f"instructor_dir  {instructor_dir}")
 student_dir = os.path.relpath(os.path.join(instructor_dir, "../summer-school-2021/"))
+solutions_dir = os.path.relpath(os.path.join(instructor_dir, "../summer-school-2021-solutions/"))
 #print(f"student_dir  {student_dir}")
 
 def mkdirs(dstpath):
@@ -31,7 +32,6 @@ class Element:
     self.chapter = chapter
     self.type = type
     self.filename = filename
-    self.extra_top_secret_inline_elision_paths = set()
 
     self.num = None
     if type=="solutions":
@@ -44,7 +44,7 @@ class Element:
       self.exercise_rel_path = None
 
   def is_dafny_source(self):
-    return self.num != None
+    return self.num != None and "elide" not in self.filename
 
   def key(self):
     return (self.chapter, self.type, self.filename)
@@ -61,6 +61,9 @@ class Element:
   def student_path(self):
     return os.path.join(student_dir, self.chapter, self.type, self.filename)
 
+  def solution_path(self):
+    return os.path.join(solutions_dir, self.exercise_rel_path)
+
   def exercise_path(self):
     return os.path.join(student_dir, self.exercise_rel_path)
 
@@ -69,9 +72,13 @@ class Element:
     assert mo
     return mo.groups()[0]
 
-  def inline(self, including_path, line):
+  def inline(self, including_path, line, duplicate_detector):
     inlinefile = self.path_for_inline(line)
+    if inlinefile in duplicate_detector:
+      print(f"  rejecting duplicate {inlinefile}")
+      return []
     inlinepath = os.path.join(os.path.dirname(including_path), inlinefile)
+    print(f" inline file {inlinefile} from {including_path} with dupset {duplicate_detector}")
     lines = [line.rstrip() for line in open(inlinepath).readlines()]
     output_lines = []
     for line in lines:
@@ -79,22 +86,19 @@ class Element:
           # what a hackaroo
           and not "library" in line):
           #and not "elide" in line):
-        #print("thinking about ", self.path_for_inline(line))
-        if (self.path_for_inline(line) in self.extra_top_secret_inline_elision_paths):
-          pass
-          #print("top-secret-eliding f{self.path_for_inline(line)}")
-        else:
-            output_lines += self.inline(inlinepath, line)
+        #print("thinking about ", inlinefile)
+        print(f"  inlining from {inlinefile}, dupset now {duplicate_detector}")
+        output_lines += self.inline(inlinepath, line, duplicate_detector)
+        duplicate_detector.add(inlinefile)
       elif line.startswith("//#"):
         pass
       else:
         output_lines.append(line)
     return output_lines
 
-  def transform_solution(self):
-    #print(f"filename {self.filename}")
-    if "elide" in self.filename:
-      return
+  def transform_solution_to_exercise(self):
+    print(f"chapter {self.chapter} filename {self.filename}")
+    duplicate_detector = set()
     elide = False
     input_lines = [line.rstrip() for line in open(self.instructor_path()).readlines()]
     output_lines = []
@@ -115,12 +119,16 @@ class Element:
         assert elide    # mismatched start-end elide
         elide = False
         output_line = None
-      elif input_line.startswith("//#extratopsecrethackmarkforelision"):
-        # I'm so ashamed.
-        self.extra_top_secret_inline_elision_paths.add(input_line.split(" ")[-1].strip('"'))
+      elif input_line.startswith("//#excludefrominline"):
+        exclude = input_line.split()[-1]
+        print(f"- excludefrominline {exclude}")
+        duplicate_detector.add(exclude)
+      elif "//#magicinclude" in input_line:
+        print("  yo bro", input_line, "dd", duplicate_detector)
+        output_lines += self.inline(self.instructor_path(), input_line, duplicate_detector)
+        output_line = None
       elif input_line.startswith("//#inline"):
-        output_lines += self.inline(self.instructor_path(), input_line)
-        elide = False
+        output_lines += self.inline(self.instructor_path(), input_line, duplicate_detector)
         output_line = None
       elif elide:
         output_line = None
@@ -130,21 +138,61 @@ class Element:
     open(self.exercise_path(), "w").write(''.join([line+"\n" for line in output_lines]))
     #print(f"Generated {self.exercise_path()}")
 
+  # haaaaack party
+  def transform_solution_to_published_solution(self):
+    print(f"solns-chapter {self.chapter} filename {self.filename}")
+    def fixup_solution_include(include_line):
+      include_path = re.compile('include "(.*)"').search(include_line).groups()[0]
+      new_path = include_path.replace("/solutions/", "/exercises/").replace("_solution.", ".")
+      return f'include "{new_path}"'
+
+    duplicate_detector = set()
+    input_lines = [line.rstrip() for line in open(self.instructor_path()).readlines()]
+    output_lines = []
+    for input_line in input_lines:
+      output_line = input_line
+      if (input_line.startswith("//#exercise")
+        or input_line.startswith("//#inline")
+        or input_line.startswith("//#start-elide")
+        or input_line.startswith("//#end-elide")
+        or input_line.startswith("//#extratopsecrethackmarkforelision")
+        ):
+        continue
+      elif input_line.startswith("//#excludefrominline"):
+        exclude = input_line.split()[-1]
+        print(f"- excludefrominline {exclude}")
+        duplicate_detector.add(exclude)
+      elif "//#magicinclude" in input_line:
+        print("  yo bro", input_line)
+        output_lines += self.inline(self.instructor_path(), input_line, duplicate_detector)
+        output_line = None
+      elif input_line.startswith("include"):
+        output_line = fixup_solution_include(input_line)
+      if output_line!=None:
+        output_lines.append(output_line)
+    mkdirs(self.solution_path())
+    open(self.solution_path(), "w").write(''.join([line+"\n" for line in output_lines]))
+
   def compile(self):
     #print(f"-- {self.type}/{self.filename}")
     if self.type == "solutions":
       # solutions map into exercises dir
       #print(f"Transform {self.num}")
-      self.transform_solution()
+      if "elide" not in self.filename:
+        self.transform_solution_to_exercise()
+        self.transform_solution_to_published_solution()
     else:
       # everything else goes in the same relative dir
       mkdir_and_copy(self.instructor_path(), self.student_path())
 
-  def test(self):
-    if self.is_dafny_source():
-      cmd = ["dafny", "/compile:0", "/vcsCores:6", self.instructor_path()]
-      print(f"  -- {' '.join(cmd)}")
-      return subprocess.call(cmd)==0
+  def test_dafny(self, pathfn, verify):
+    if not self.is_dafny_source():
+      return []
+    path = pathfn()
+    verifyFlag = ["/noVerify"] if not verify else []
+    cmd = ["dafny"] + verifyFlag + ["/compile:0", "/vcsCores:6", path]
+    print(f"  -- {' '.join(cmd)}")
+    return [(self, subprocess.call(cmd)==0)]
 
   def extract_docs(self):
     input_lines = [line.rstrip() for line in open(self.instructor_path()).readlines()]
@@ -185,14 +233,17 @@ class Catalog:
             print(f"While processing {element}:")
             raise
 
+  def blast_dir(self, dirname):
+      try:
+        shutil.rmtree(dirname)
+      except FileNotFoundError: pass
+      os.mkdir(dirname)
+
   def clean_output(self):
     # Destroy existing data
     for chapter in sorted(self.elements.keys()):
-      output_chapter = os.path.join(student_dir, chapter)
-      try:
-        shutil.rmtree(output_chapter)
-      except FileNotFoundError: pass
-      os.mkdir(output_chapter)
+      self.blast_dir(os.path.join(student_dir, chapter))
+      self.blast_dir(os.path.join(solutions_dir, chapter))
 
   def get_elements(self):
     element_list = []
@@ -220,13 +271,20 @@ class Catalog:
 
   def test_elements(self):
     results = []
-    self.foreach_element(lambda elt: results.append((elt, elt.test())))
+    #XXX
+    verify = False
+    def test_elt(elt, results):
+      results+=elt.test_dafny(elt.instructor_path, verify)
+      results+=elt.test_dafny(elt.solution_path, verify)
+      # don't bother verifying student-view of exercises
+      results+=elt.test_dafny(elt.exercise_path, False)
+    self.foreach_element(lambda elt: test_elt(elt, results))
     failures = []
     for (elt, result) in results:
       if result==False:
         failures.append(elt)
     if len(failures)==0:
-      print("All tests passed")
+      print(f"All {len(results)} tests passed")
     else:
       print(f"Failing tests count: {len(failures)}")
       print(failures)
@@ -234,8 +292,8 @@ class Catalog:
   def copy_library(self):
     for in_path in glob.glob(instructor_dir+"/library/*"):
       suffix = in_path[len(instructor_dir)+1:]
-      out_path = os.path.join(student_dir, suffix)
-      shutil.copyfile(in_path, out_path)
+      mkdir_and_copy(in_path, os.path.join(student_dir, suffix))
+      mkdir_and_copy(in_path, os.path.join(solutions_dir, suffix))
 
 def main():
   action = sys.argv[1] if len(sys.argv)==2 else "compile"

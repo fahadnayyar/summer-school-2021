@@ -2,10 +2,7 @@
 //#desc Implement search in a binary tree and prove it works.
 //#desc Practice with proof diagnosis.
 
-//#exerciseinclude "exercise22.dfy"
-//#start-elide
-include "exercise22_solution.dfy"
-//#end-elide
+include "exercise22_solution.dfy" //#magicinclude
 
 // This exercise builds on exercise22 (so make sure you have completed
 // that one, too). If in doubt about your solution to exercise22, contact 

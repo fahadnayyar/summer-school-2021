@@ -28,11 +28,7 @@
  */
 
 include "../../library/Library.dfy" // Some handy utilities.
-//#elide // types are given:
-//#inline "elide-types.dfy"
-//#start-elide
-include "elide-types.dfy"
-//#end-elide
+include "elide-types.dfy" //#magicinclude //#includeonce
 
 module Types {
   import opened Library

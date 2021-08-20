@@ -5,8 +5,5 @@
 // impossible to prove. In fact, you can reuse parts of the instructor-supplied
 // proof from here as well.
 // 
-//#extratopsecrethackmarkforelision "elide-types.dfy"
-//#inlineinclude "../../chapter05-dsm/solutions/exercise03_solution.dfy"
-//#start-elide
-include "../../chapter05-dsm/solutions/exercise03_solution.dfy"
-//#end-elide
+//#excludefrominline elide-types.dfy
+include "../../chapter05-dsm/solutions/exercise03_solution.dfy" //#magicinclude

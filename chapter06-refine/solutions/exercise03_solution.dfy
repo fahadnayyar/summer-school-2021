@@ -25,10 +25,7 @@
  * on it.
  */
 
-//#exerciseinclude "exercise02.dfy"
-//#start-elide
-include "exercise02_solution.dfy"
-//#end-elide
+include "exercise02_solution.dfy" //#magicinclude
 
 // We don't state AC2 because it's a history property, not stateable as a
 // single-state safety property. But it should be clearly evident from the

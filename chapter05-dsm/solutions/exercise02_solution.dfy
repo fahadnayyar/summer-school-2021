@@ -20,10 +20,7 @@
 // Note that we include the result of exercise01. If you have doubts about the
 // model you built there, please contact an instructor for a correct solution
 // to build on for this exercise.
-//#exerciseinclude "exercise01.dfy"
-//#start-elide
-include "exercise01_solution.dfy"
-//#end-elide
+include "exercise01_solution.dfy" //#magicinclude
 
 module Obligations {
   import opened CommitTypes
