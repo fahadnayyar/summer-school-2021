@@ -7,10 +7,7 @@
 // You are welcome to prove correct your own model from chapter03,
 // but note that may be too hard or too easy if your spec is broken.
 
-//#inline "../../chapter03-sm/solutions/exercise03_solution.dfy"
-//#start-elide
-include "../../chapter03-sm/solutions/exercise03_solution.dfy"
-//#end-elide
+include "../../chapter03-sm/solutions/exercise03_solution.dfy"  //#magicinclude
 
 //#start-elide
 // Safety doesn't care what server thinks, but to get an *inductive* invariant,
