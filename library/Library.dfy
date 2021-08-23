@@ -22,6 +22,10 @@ module Library {
   // UnionSeqOfSets. However, the quantifiers combine with native map axioms
   // to be a bit trigger-happy, so we've pulled them into independent lemmas
   // you can invoke only when needed.
+  // Suggestion: hide calls to this lemma in a an
+  //   assert P by { SetsAreSubsetsOfUnion(...) }
+  // construct so you can get your conclusion without "polluting" the rest of the
+  // lemma proof context with this enthusiastic forall.
   lemma SetsAreSubsetsOfUnion<T>(theSets: seq<set<T>>)
     ensures forall idx | 0<=idx<|theSets| :: theSets[idx] <= UnionSeqOfSets(theSets)
   {

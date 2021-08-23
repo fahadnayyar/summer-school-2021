@@ -117,7 +117,7 @@ module MapSpec {
   }
 }
 
-module Implementation {
+module ShardedKVProtocol {
   import opened Library
   import opened Types
 
@@ -196,7 +196,7 @@ module RefinementProof {
   import opened Library
   import opened Types
   import MapSpec
-  import opened Implementation
+  import opened ShardedKVProtocol
 
   predicate HostHasKey(c: Constants, v: Variables, hostidx:HostIdx, key:Key)
     requires v.WF(c)
@@ -301,7 +301,9 @@ module RefinementProof {
     reveal_KeysHeldUniquely();
   }
 
-
+  // This is not a goal by itself, it's one of the cases you'll need to prove
+  // NextPreservesInvAndRefines. We've provided its signature to help you
+  // structure your overall proof.
   lemma InsertPreservesInvAndRefines(c: Constants, v: Variables, v': Variables, insertHost: HostIdx, insertedKey: Key, value: Value)
     requires Inv(c, v)
     requires Next(c, v, v')
@@ -312,6 +314,9 @@ module RefinementProof {
   {
   }
 
+  // This is not a goal by itself, it's one of the cases you'll need to prove
+  // NextPreservesInvAndRefines. We've provided its signature to help you
+  // structure your overall proof.
   lemma QueryPreservesInvAndRefines(c: Constants, v: Variables, v': Variables, queryHost: HostIdx, key: Key, output: Value)
     requires Inv(c, v)
     requires Next(c, v, v')
@@ -322,6 +327,9 @@ module RefinementProof {
   {
   }
 
+  // This is not a goal by itself, it's one of the cases you'll need to prove
+  // NextPreservesInvAndRefines. We've provided its signature to help you
+  // structure your overall proof.
   lemma TransferPreservesInvAndRefines(c: Constants, v: Variables, v': Variables, sendIdx: HostIdx, recvIdx: HostIdx, sentKey: Key, value: Value)
     requires Inv(c, v)
     requires Next(c, v, v')
@@ -333,6 +341,9 @@ module RefinementProof {
   {
   }
 
+  // This is your proof goal.
+  // You'll need a case analysis on the different kinds of steps to prove
+  // it.
   lemma NextPreservesInvAndRefines(c: Constants, v: Variables, v': Variables)
     requires Inv(c, v)
     requires Next(c, v, v')
