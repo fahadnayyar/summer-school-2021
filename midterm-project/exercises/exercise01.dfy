@@ -1,6 +1,6 @@
 //#title Midterm Project
-//#desc Build a distributed lock server. Define your protocol in protocol.i;
-//#desc write your safety spec and proof here.
+//#desc Build a distributed lock server. Define how a host implements your
+//#desc protocol in host.i; write your safety spec and proof here.
 
 // This challenge differs from LockServer in two ways. First, there is no
 // central server that coordinates the activity. Second, the hosts can
@@ -15,7 +15,7 @@
 // will become the new holder and will set its epoch number to the message’v
 // epoch number.
 
-// You'll first need to modify 'protocol.i.dfy' to define the protocol message
+// You'll first need to modify 'host.i.dfy' to define the protocol message
 // format and the host behavior.
 // Then come back here define the safety condition and prove that the
 // distributed system made from that protocol maintains it.
