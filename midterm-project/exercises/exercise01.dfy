@@ -38,7 +38,14 @@ module Proof {
   import opened DistributedSystem
   import opened SafetySpec
 
-  // TODO XXX should we give some signatures below as hints?
+  // Here's a predicate that will be very useful in constructing inviariant conjuncts.
+  predicate InFlight(c:Constants, v:Variables, message:Host.Message) {
+    && v.WF(c)
+    && message in v.network.sentMsgs
+    && ValidHostId(message.dest)
+    && message.epoch > v.hosts[message.dest].epoch
+  }
+
 
   predicate Inv(c: Constants, v:Variables) {
     true // Replace this placeholder with an invariant that's inductive and supports Safety.
