@@ -45,10 +45,7 @@ module Proof {
   import opened DistributedSystem
   import opened SafetySpec
 
-//#start-elide
-  // Manos: I thought we should give them InFlight, as it's a useful predicate,
-  // while not actually part of the inductive invariant as is.
-//#end-elide
+  // Here's a predicate that will be very useful in constructing inviariant conjuncts.
   predicate InFlight(c:Constants, v:Variables, message:Host.Message) {
     && v.WF(c)
     && message in v.network.sentMsgs
