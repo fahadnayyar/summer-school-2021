@@ -45,8 +45,10 @@ module Proof {
   import opened DistributedSystem
   import opened SafetySpec
 
-  // TODO XXX should we give some signatures below as hints?
 //#start-elide
+  // Manos: I thought we should give them InFlight, as it's a useful predicate,
+  // while not actually part of the inductive invariant as is.
+//#end-elide
   predicate InFlight(c:Constants, v:Variables, message:Host.Message) {
     && v.WF(c)
     && message in v.network.sentMsgs
@@ -54,6 +56,7 @@ module Proof {
     && message.epoch > v.hosts[message.dest].epoch
   }
 
+//#start-elide
   predicate UniqueMessageInFlight(c: Constants, v:Variables) {
     forall m1, m2 :: InFlight(c, v, m1) && InFlight(c, v, m2) ==> m1 == m2
   }
