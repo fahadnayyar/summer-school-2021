@@ -629,17 +629,10 @@ module TwoPCInvariantProof {
       var hostid := step.hostid;
       assert Host.Next(c.hosts[hostid], v.hosts[hostid], v'.hosts[hostid], step.msgOps);  // observe trigger
       if msg in v.network.sentMsgs {  // observe trigger
-//        assert CoordinatorHost.ObservesResult(CoordinatorConstants(c), CoordinatorVars(c, v), msg.decision);
-//        assert CoordinatorHost.AllVotesCollected(CoordinatorConstants(c), CoordinatorVars(c,v'));
         // trigger: hey, all the votes are the same!
-        // wait why is that true? That's not true when receiving a vote. Hrm.
         assert forall hostIdx:HostId | hostIdx < |CoordinatorVars(c,v).votes| :: CoordinatorVars(c,v').votes[hostIdx] == CoordinatorVars(c,v).votes[hostIdx];
-//        assert CoordinatorHost.ObservesResult(CoordinatorConstants(c), CoordinatorVars(c, v'), msg.decision);
-//      } else {
-
       }
     }
-//    assert Safety(c, v'); // somehow this trigger is necessary to get the forall above! Bizarre.
   }
 
   lemma InvImpliesSafety(c: Constants, v: Variables)

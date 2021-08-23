@@ -42,8 +42,7 @@ module Proof {
   predicate InFlight(c:Constants, v:Variables, message:Host.Message) {
     && v.WF(c)
     && message in v.network.sentMsgs
-    && ValidHostId(message.dest)
-    && message.epoch > v.hosts[message.dest].epoch
+    && false // ...and then add a check that the message's epoch is still valid.
   }
 
 
