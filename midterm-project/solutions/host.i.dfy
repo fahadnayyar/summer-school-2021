@@ -2,7 +2,7 @@
 //#desc Define the host state machine here: message type, state machine for executing one
 //#desc host's part of the protocol.
 
-// Seee exercise01.dfy for an English design of the protocol.
+// See exercise01.dfy for an English design of the protocol.
 
 include "network.s.dfy"
 
