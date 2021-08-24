@@ -59,11 +59,11 @@ module Proof {
 
 //#start-elide
   predicate UniqueMessageInFlight(c: Constants, v:Variables) {
-    forall m1, m2 :: InFlight(c, v, m1) && InFlight(c, v, m2) ==> m1 == m2
+    forall m1, m2 | InFlight(c, v, m1) && InFlight(c, v, m2) :: m1 == m2
   }
 
   predicate InFlightPrecludesLockHeld(c: Constants, v:Variables) {
-    forall m :: InFlight(c, v, m) ==> (forall id | ValidHostId(id) :: !v.hosts[id].holdsLock)
+    forall m | InFlight(c, v, m) :: (forall id | ValidHostId(id) :: !v.hosts[id].holdsLock)
   }
 
   // We wrote this in a fit of symmetry, but it's equivalent to InFlightPrecludesLockHeld.
@@ -84,7 +84,7 @@ module Proof {
   }
 
   predicate InFlightHasFreshestEpoch(c: Constants, v:Variables) {
-    forall m :: InFlight(c, v, m) ==> (forall id | ValidHostId(id) :: v.hosts[id].epoch < m.epoch)
+    forall m | InFlight(c, v, m) :: (forall id | ValidHostId(id) :: v.hosts[id].epoch < m.epoch)
   }
 
 //#end-elide
