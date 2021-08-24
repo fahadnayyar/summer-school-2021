@@ -199,16 +199,39 @@ module MapSpec {
     assert ValidBehavior(executionC, stepsC);
   }
 
-/*
   lemma ForcedOrdering(execution:seq<Variables>, step:seq<Step>, output:Value)
     requires ValidBehavior(execution, step)
-    requires AcceptRequestStep(execution[0], execution[1], InsertRequest("cat", 3))
-    requires DeliverReplyStep(execution[2], execution[3], InsertReply(InsertRequest("cat", 3)))
-    requires AcceptRequestStep(execution[3], execution[4], QueryRequest("cat"))
-    requires DeliverReplyStep(execution[5], execution[6], QueryReply(QueryRequest("cat"), output))
+    requires 6 <= |step|
+    requires step[0] == AcceptRequestStep(InsertRequest("cat", 3))
+    requires !step[1].AcceptRequestStep? && !step[1].DeliverReplyStep? // Force an action
+    requires step[2] == DeliverReplyStep(InsertReply(step[0].request))
+    requires step[3] == AcceptRequestStep(QueryRequest("cat"))
+    requires !step[4].AcceptRequestStep? && !step[4].DeliverReplyStep? // Force an action
+    requires step[5] == DeliverReplyStep(QueryReply(step[3].request, output))
     ensures output == 3;
   {
+    var insert3 := InsertRequest("cat", 3);
+      //assert execution[1].requests == multiset{insert3};
+      assert execution[1].replies == multiset{};
+      assert DeliverReply(execution[2], execution[3], step[2].reply);
+      assert execution[2].replies == multiset{InsertReply(step[0].request)};
+      assert execution[2].replies != multiset{};
+      assert step[1].InsertOpStep? || step[1].QueryOpStep?;
+      assert !step[1].QueryOpStep?;
+
+    assert step[1] == InsertOpStep(insert3);
+    assert execution[2].mapp == InitialMap()["cat" := 3];
+    assert execution[3].mapp == InitialMap()["cat" := 3];
+    assert execution[4].mapp == InitialMap()["cat" := 3];
+
+  // jon left off here goofing around with inferring what's possible. But ... ugh
+    var query := QueryRequest("cat");
+    assert execution[4].replies == multiset{};
+    assert execution[4].requests == multiset{query};
+    assert execution[5].replies == multiset{QueryReply(step[3].request, 3)};
+    assert step[4].InsertOpStep? || step[4].QueryOpStep?;
+    assert step[4].QueryOpStep?;
+    assert output == 3;
   }
-  */
 }
 //#end-elide TODO(manos) need to exercisify this experiment
