@@ -1,4 +1,4 @@
-//#title Synchronous KV Store
+//#title Sharded KV Store with Synchronous Communication
 //#desc Build a refinement from a protocol (distributed sharded state) to
 //#desc a specification (a logically-centralized abstract map).
 

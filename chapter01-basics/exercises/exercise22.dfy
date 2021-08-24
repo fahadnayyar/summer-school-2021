@@ -50,4 +50,3 @@ lemma SortedTreeMeansSortedSequence(tree:Tree)
 {
 }
 
-    return false;  // Implement this method. Feel free to make this a recursive method.
