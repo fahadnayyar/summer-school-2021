@@ -66,11 +66,10 @@ module Proof {
     forall m :: InFlight(c, v, m) ==> (forall id | ValidHostId(id) :: !v.hosts[id].holdsLock)
   }
 
-  predicate InFlightHasFreshestEpoch(c: Constants, v:Variables) {
-    forall m :: InFlight(c, v, m) ==> (forall id | ValidHostId(id) :: v.hosts[id].epoch < m.epoch)
-  }
-
-  predicate LockHolderPrecludesInFlight(c: Constants, v:Variables)
+  // We wrote this in a fit of symmetry, but it's equivalent to InFlightPrecludesLockHeld.
+  // Once we figured that out, we wrote a lemma to convince myself, then deleted this conjunct
+  // from Inv.
+  predicate Unused_LockHolderPrecludesInFlight(c: Constants, v:Variables)
     requires v.WF(c)
   {
     forall id | ValidHostId(id) && v.hosts[id].holdsLock
@@ -84,6 +83,10 @@ module Proof {
       :: (forall oid | ValidHostId(oid) && oid!=id :: v.hosts[oid].epoch < v.hosts[id].epoch)
   }
 
+  predicate InFlightHasFreshestEpoch(c: Constants, v:Variables) {
+    forall m :: InFlight(c, v, m) ==> (forall id | ValidHostId(id) :: v.hosts[id].epoch < m.epoch)
+  }
+
 //#end-elide
 
   predicate Inv(c: Constants, v:Variables) {
@@ -94,15 +97,12 @@ module Proof {
     // There are never two messages in flight.
     && UniqueMessageInFlight(c, v)
 
-    // If a message is flight, no client holds the lock, and
-    // the message has the freshest epoch number.
+    // If a message is flight, no client holds the lock, and vice versa
     && InFlightPrecludesLockHeld(c, v)
-    && InFlightHasFreshestEpoch(c, v)
 
-    // If a clent holds the lock, no message is in flight, and
-    // the client has the freshest epoch number.
-    && LockHolderPrecludesInFlight(c, v)
+    // Whoever holds the lock (host or in-flight message) has the freshest epoch number.
     && LockHolderHasFreshestEpoch(c, v)
+    && InFlightHasFreshestEpoch(c, v)
 
     && Safety(c, v)
 //#end-elide
