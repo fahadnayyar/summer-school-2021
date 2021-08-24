@@ -19,7 +19,10 @@ module Host {
 
   // Define your Host protocol state machine here.
   datatype Constants = Constants(myId:HostId) {
-    predicate WF(id:HostId) { // host constants coupled to DistributedSystem Constants.
+    // host constants coupled to DistributedSystem Constants:
+    // DistributedSystem tells us our id so we can recognize inbound messages.
+    // TODO(jonh): get rid of ValidHosts; move hostCount in here instead.
+    predicate GroupWF(id:HostId) {
       myId == id
     }
   }
@@ -28,7 +31,6 @@ module Host {
   datatype Variables = Variables(holdsLock:bool, epoch:nat)
 //#end-elide
 
-  // DistributedSystem tells us our id so we can recognize inbound messages.
   predicate Init(c:Constants, v:Variables) {
 //#exercise    true // Replace me
 //#start-elide
