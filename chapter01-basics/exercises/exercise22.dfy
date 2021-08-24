@@ -2,6 +2,9 @@
 //#desc Prove an implementation meets its spec.
 //#desc Practice with proof diagnosis.
 
+include "../../library/Library.dfy"
+import opened Library
+
 // Define a Binary Tree and write a method to check if it is sorted
 
 // A binary tree is a tree data structure in which each (internal) node has a value and at
@@ -18,6 +21,15 @@ datatype Tree = Tree // you should define your Tree datatype here
 function method TreeAsSequence(tree:Tree) : seq<int>
 {
     [] // Replace me
+}
+
+// If this predicate is true about sorted sequences, then everything
+// in seq1 is <= everything in seq2.
+predicate SequencesOrderedAtInterface(seq1:seq<int>, seq2:seq<int>)
+{
+  if |seq1|==0 || |seq2|==0
+  then true
+  else Last(seq1) <= seq2[0]
 }
 
 // Note: Don't use SequenceIsSorted in your definition of IsSortedTree.
@@ -38,12 +50,4 @@ lemma SortedTreeMeansSortedSequence(tree:Tree)
 {
 }
 
-// Write a recursive implementation that checks if a tree
-// is sorted by checking the children, then using TreeAsSequence
-// on the children to confirm that both children stay on their
-// respective sides of the pivot.
-method CheckIfSortedTree(tree:Tree) returns (sorted:bool)
-    ensures sorted <==> IsSortedTree(tree)
-{
     return false;  // Implement this method. Feel free to make this a recursive method.
-}

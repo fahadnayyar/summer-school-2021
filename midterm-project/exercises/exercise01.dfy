@@ -2,17 +2,18 @@
 //#desc Build a distributed lock server. Define how a host implements your
 //#desc protocol in host.i; write your safety spec and proof here.
 
-// This challenge differs from LockServer in two ways. First, there is no
-// central server that coordinates the activity. Second, the hosts can
-// communicate only via asynchronous messages; a single state machine
-// transition cannot simultaneously read or update the state of two hosts.
+// This challenge differs from LockServer (from chapters 03 and 04) in two
+// ways. First, there is no central server that coordinates the activity.
+// Second, the hosts can communicate only via asynchronous messages; a single
+// state machine transition cannot simultaneously read or update the state of
+// two hosts.
 //
 // To guard against duplicate messages, the nodes associate a monotonically
 // increasing epoch number with the lock. Initially, node 0 holds the lock and
 // its epoch number is 1. A node that holds the lock can “grant” it to another
 // node by sending them a “Grant” message which has an epoch number that is
 // greater than the node's epoch number. A node that receives such a message
-// will become the new holder and will set its epoch number to the message’v
+// will become the new holder and will set its epoch number to the message’s
 // epoch number.
 
 // You'll first need to modify 'host.i.dfy' to define the protocol message
