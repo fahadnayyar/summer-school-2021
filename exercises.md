@@ -100,7 +100,7 @@
 
 ## chapter07-async-clients
 
-- [`chapter07-async-clients/exercises/exercise01.dfy`](chapter07-async-clients/exercises/exercise01.dfy)<br>**KV Store Spec with Asynchronous Client Interface** -- Build a refinement from a protocol (distributed sharded state) to a specification (a logically-centralized abstract map).
+- [`chapter07-async-clients/exercises/exercise01.dfy`](chapter07-async-clients/exercises/exercise01.dfy)<br>**KV Spec with Asynchronous Client Interface** -- Modify the KV spec to encode asynchronous client requests.
 
 ## final-project
 

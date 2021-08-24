@@ -282,7 +282,7 @@ module RefinementProof {
     false // Replace me
   }
 
-  lemma InitRefines(c: Constants, v: Variables)
+  lemma RefinementInit(c: Constants, v: Variables)
     requires c.WF()
     requires Init(c, v)
     ensures MapSpec.Init(Abstraction(c, v))
@@ -344,7 +344,7 @@ module RefinementProof {
   // This is your proof goal.
   // You'll need a case analysis on the different kinds of steps to prove
   // it.
-  lemma NextPreservesInvAndRefines(c: Constants, v: Variables, v': Variables)
+  lemma RefinementNext(c: Constants, v: Variables, v': Variables)
     requires Inv(c, v)
     requires Next(c, v, v')
     ensures Inv(c, v')
