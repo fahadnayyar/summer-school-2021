@@ -81,8 +81,8 @@ lemma SortedTreeMeansSortedSequence(tree:Tree)
 method CheckIfSortedTree(tree:Tree) returns (sorted:bool)
     ensures sorted <==> IsSortedTree(tree)
 {
-//#exercise    return false;  // Implement this method. Feel free to make this a recursive method.
-//#start-elide
+//--//#exercise    return false;  // Implement this method. Feel free to make this a recursive method.
+//--//#start-elide
     if (tree.Nil?) {
         return true;
     } else {
@@ -111,6 +111,6 @@ method CheckIfSortedTree(tree:Tree) returns (sorted:bool)
             }
         }
     }
-//#end-elide
+//--//#end-elide
 }
 //#end-elide

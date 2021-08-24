@@ -14,18 +14,21 @@ method FindInBinaryTree(tree:Tree, needle:int) returns (found:bool)
 {
 //#exercise    return true;
 //#start-elide
-    if (tree.Nil?) {
-        return false;
+  if (tree.Nil?) {
+    return false;
+  } else {
+    if (needle == tree.value) {
+      assert needle in TreeAsSequence(tree);
+      return true;
+    } else if (needle < tree.value) {
+      SortedTreeMeansSortedSequence(tree.right);
+      var leftRet := FindInBinaryTree(tree.left, needle);
+      return leftRet;
     } else {
-        if (needle == tree.value) {
-            return true;
-        } else if (needle < tree.value) {
-            var leftRet := FindInBinaryTree(tree.left, needle);
-            return leftRet;
-        } else {
-            var rightRet := FindInBinaryTree(tree.right, needle);
-            return rightRet;
-        }
+      SortedTreeMeansSortedSequence(tree.left);
+      var rightRet := FindInBinaryTree(tree.right, needle);
+      return rightRet;
     }
+  }
 //#end-elide
 }
