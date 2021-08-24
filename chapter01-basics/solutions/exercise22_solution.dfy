@@ -2,6 +2,9 @@
 //#desc Prove an implementation meets its spec.
 //#desc Practice with proof diagnosis.
 
+include "../../library/Library.dfy"
+import opened Library
+
 // Define a Binary Tree and write a method to check if it is sorted
 
 // A binary tree is a tree data structure in which each (internal) node has a value and at
@@ -27,6 +30,15 @@ function method TreeAsSequence(tree:Tree) : seq<int>
 //#end-elide
 }
 
+// If this predicate is true about sorted sequences, then everything
+// in seq1 is <= everything in seq2.
+predicate SequencesOrderedAtInterface(seq1:seq<int>, seq2:seq<int>)
+{
+  if |seq1|==0 || |seq2|==0
+  then true
+  else Last(seq1) <= seq2[0]
+}
+
 // Note: Don't use SequenceIsSorted in your definition of IsSortedTree.
 predicate IsSortedTree(tree:Tree) {
 //#exercise    true // Replace me
@@ -34,8 +46,8 @@ predicate IsSortedTree(tree:Tree) {
     if (tree.Nil?)
     then true
     else
-        && (forall j | 0 <= j < |TreeAsSequence(tree.left)| :: TreeAsSequence(tree.left)[j] <= tree.value)
-        && (forall j | 0 <= j < |TreeAsSequence(tree.right)| :: tree.value <= TreeAsSequence(tree.right)[j])
+        && SequencesOrderedAtInterface(TreeAsSequence(tree.left), [tree.value])
+        && SequencesOrderedAtInterface([tree.value], TreeAsSequence(tree.right))
         && IsSortedTree(tree.left)
         && IsSortedTree(tree.right)
 //#end-elide
@@ -54,6 +66,14 @@ lemma SortedTreeMeansSortedSequence(tree:Tree)
 {
 }
 
+//#start-elide
+// Note to instructors: This was a disaster because this implementation
+// actually stupider than IsSortedSequence(TreeAsSequence()); there's no reason
+// a student would guess to implement it this way. We should consider getting
+// rid of all implementations entirely; the ones we did do in 2021 were
+// bumblesville at best. Consider trying to write some more efficient but still
+// functional/mathy definition and then showing equivalence.
+//
 // Write a recursive implementation that checks if a tree
 // is sorted by checking the children, then using TreeAsSequence
 // on the children to confirm that both children stay on their
@@ -93,3 +113,4 @@ method CheckIfSortedTree(tree:Tree) returns (sorted:bool)
     }
 //#end-elide
 }
+//#end-elide
