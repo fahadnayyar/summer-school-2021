@@ -131,7 +131,10 @@ module ShardedKVProtocol {
 
   datatype Variables = Variables(maps:seq<map<Key, Value>>)
   {
-    predicate WF(c: Constants) { |maps| == c.mapCount }
+    predicate WF(c: Constants) {
+      && c.WF()
+      && |maps| == c.mapCount
+    }
   }
 
   predicate Init(c: Constants, v: Variables)
