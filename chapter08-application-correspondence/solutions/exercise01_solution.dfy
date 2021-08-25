@@ -18,7 +18,21 @@ module AsyncClientShardedKVProtocol {
     predicate ValidHost(idx: HostIdx) { idx < mapCount }
   }
 
-  datatype Variables = Variables(maps:seq<map<Key, Value>>, requests:set<Input>, replies:set<Output>)
+//#elide TODO(manos): talk around this in the lecture slides. Maybe in a future revision we'd just
+//#elide bite the bullet and throw all the complexity in here, since the students have seen it
+//#elide since chapter 05?
+  // Since the bottom-bread application-visible ABI is a trusted ("player 1")
+  // definition, it should be expressed as part of the DistributedSystem
+  // compound state machine, like the Network module.  We're trying to keep
+  // this exercise simple (atomic Transfers from one host to the next, no
+  // Network), so we'll fake that trusted module split with a dataytpe struct
+  // marked trusted.
+  // "Trusted" here means that player 1 has a way of deciding when this part of
+  // the state should change, for example, requests should only appear when a
+  // client thread actually makes a library downcall.
+  datatype TrustedABI = TrustedABI(requests:set<Input>, replies:set<Output>)
+
+  datatype Variables = Variables(maps:seq<map<Key, Value>>, abi: TrustedABI)
   {
     predicate WF(c: Constants) {
       && c.WF()
@@ -30,15 +44,15 @@ module AsyncClientShardedKVProtocol {
   {
     && v.WF(c)
     && (forall idx:HostIdx | c.ValidHost(idx) :: v.maps[idx] == if idx==0 then InitialMap() else map[])
-    && v.requests == {}
-    && v.replies == {}
+    && v.abi.requests == {}
+    && v.abi.replies == {}
   }
   predicate AcceptRequest(v:Variables, v':Variables, request: Input)
   {
 //#exercise    false // TODO Define this predicate
 //#start-elide
-    && request !in v.requests // (liveness only) if client picked identical nonces, don't let the requests collapse.
-    && v' == v.(requests := v.requests + {request})
+    && request !in v.abi.requests // (liveness only) if client picked identical nonces, don't let the requests collapse.
+    && v' == v.(abi := v.abi.(requests := v.abi.requests + {request}))
 //#end-elide
   }
 
@@ -46,8 +60,8 @@ module AsyncClientShardedKVProtocol {
   {
 //#exercise    false // TODO Define this predicate
 //#start-elide
-    && reply in v.replies
-    && v' == v.(replies := v.replies - {reply})
+    && reply in v.abi.replies
+    && v' == v.(abi := v.abi.(replies := v.abi.replies - {reply}))
 //#end-elide
   }
 
@@ -55,16 +69,17 @@ module AsyncClientShardedKVProtocol {
   {
     && v.WF(c)
     && c.ValidHost(idx)
-    && request in v.requests
+    && request in v.abi.requests
     && request.InsertRequest?
     && var reply := InsertReply(request);
-    && reply !in v.replies
+    && reply !in v.abi.replies
     && request.key in v.maps[idx] // the participating "host" needs to be authoritative on this key
     //&& key in AllKeys() // implied by previous conjunct + Inv()ariant
     && v' == v.(
       maps := v.maps[idx := v.maps[idx][request.key := request.value]],
-      requests := v.requests - {request},
-      replies := v.replies + {reply})
+      abi := v.abi.(
+        requests := v.abi.requests - {request},
+        replies := v.abi.replies + {reply}))
               
   }
 
@@ -72,15 +87,16 @@ module AsyncClientShardedKVProtocol {
   {
     && v.WF(c)
     && c.ValidHost(idx)
-    && request in v.requests
+    && request in v.abi.requests
     && request.QueryRequest?
     && var reply := QueryReply(request, output);
-    && reply !in v.replies
+    && reply !in v.abi.replies
     && request.key in v.maps[idx] // the participating "host" needs to be authoritative on this key
     && output == v.maps[idx][request.key]
     && v' == v.(
-      requests := v.requests - {request},
-      replies := v.replies + {reply})
+      abi := v.abi.(
+        requests := v.abi.requests - {request},
+        replies := v.abi.replies + {reply}))
   }
 
   // A possible enhancement exercise: transfer many key,value pairs in one step
@@ -202,8 +218,8 @@ module RefinementProof {
 //#start-elide
     MapSpec.Variables(
       map key | key in KnownKeys(c, v) :: AbstractionOneKey(c, v, key),
-      v.requests,
-      v.replies)
+      v.abi.requests,
+      v.abi.replies)
 //#end-elide
   }
 
