@@ -102,6 +102,10 @@
 
 - [`chapter07-async-clients/exercises/exercise01.dfy`](chapter07-async-clients/exercises/exercise01.dfy)<br>**KV Spec with Asynchronous Client Interface** -- Modify the KV spec to encode asynchronous client requests.
 
+## chapter08-application-correspondence
+
+- [`chapter08-application-correspondence/exercises/exercise01.dfy`](chapter08-application-correspondence/exercises/exercise01.dfy)<br>**Application Correspondence with Synchronous Sharded KV Store** -- How do we prevent a nonsense refinement theorem, for example one that does whatever it wants, but abstracts every protocol-level state to the initial spec state, so it can refine to a bunch of stutter steps?
+
 ## final-project
 
 - [`final-project/exercises/exercise01.dfy`](final-project/exercises/exercise01.dfy)<br>**Final Project** -- Design a Sharded Hash Table (SHT) protocol and prove it is correct.
