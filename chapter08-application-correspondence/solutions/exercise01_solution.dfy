@@ -274,12 +274,13 @@ module RefinementProof {
   // NextPreservesInvAndRefines. We've provided its signature to help you
   // structure your overall proof.
   lemma InsertPreservesInvAndRefines(c: Constants, v: Variables, v': Variables, insertHost: HostIdx, request:Input)
+      returns (specstep: MapSpec.Step)
     requires Inv(c, v)
     requires Next(c, v, v')
     requires c.ValidHost(insertHost)
     requires Insert(c, v, v', insertHost, request)
     ensures Inv(c, v')
-    ensures MapSpec.Next(Abstraction(c, v), Abstraction(c, v'))
+    ensures MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), specstep)
   {
 //#start-elide
     var abstractMap := Abstraction(c, v).mapp;
@@ -332,7 +333,7 @@ module RefinementProof {
     assert KnownKeys(c, v') == Types.AllKeys() by {
       assert abstractMap'.Keys == KnownKeys(c, v'); // trigger
     }
-    assert MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.InsertOpStep(request)); // witness
+    specstep := MapSpec.InsertOpStep(request);  // what used to be a witness is now explicitly exposed.
 //#end-elide
   }
 
@@ -387,13 +388,13 @@ module RefinementProof {
   // This is not a goal by itself, it's one of the cases you'll need to prove
   // NextPreservesInvAndRefines. We've provided its signature to help you
   // structure your overall proof.
-  lemma QueryPreservesInvAndRefines(c: Constants, v: Variables, v': Variables, queryHost: HostIdx, request: Input, output: Value)
+  lemma QueryPreservesInvAndRefines(c: Constants, v: Variables, v': Variables, queryHost: HostIdx, request: Input, output: Value) returns (specstep: MapSpec.Step)
     requires Inv(c, v)
     requires Next(c, v, v')
     requires c.ValidHost(queryHost)
     requires Query(c, v, v', queryHost, request, output)
     ensures Inv(c, v')
-    ensures MapSpec.Next(Abstraction(c, v), Abstraction(c, v'))
+    ensures MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), specstep)
   {
 //#start-elide
     var key := request.key;
@@ -405,21 +406,21 @@ module RefinementProof {
       reveal_KeysHeldUniquely();
     }
     EqualMapsEqualMapp(c, v, v');
-    assert MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.QueryOpStep(request, output)); // witness
+    specstep := MapSpec.QueryOpStep(request, output);  // what used to be a witness is now explicitly exposed.
 //#end-elide
   }
 
   // This is not a goal by itself, it's one of the cases you'll need to prove
   // NextPreservesInvAndRefines. We've provided its signature to help you
   // structure your overall proof.
-  lemma TransferPreservesInvAndRefines(c: Constants, v: Variables, v': Variables, sendIdx: HostIdx, recvIdx: HostIdx, sentKey: Key, value: Value)
+  lemma TransferPreservesInvAndRefines(c: Constants, v: Variables, v': Variables, sendIdx: HostIdx, recvIdx: HostIdx, sentKey: Key, value: Value) returns (specstep: MapSpec.Step)
     requires Inv(c, v)
     requires Next(c, v, v')
     requires c.ValidHost(sendIdx)
     requires c.ValidHost(recvIdx)
     requires Transfer(c, v, v', sendIdx, recvIdx, sentKey, value)
     ensures Inv(c, v')
-    ensures MapSpec.Next(Abstraction(c, v), Abstraction(c, v'))
+    ensures MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), specstep)
   {
 //#start-elide
     // domain preserved
@@ -477,18 +478,38 @@ module RefinementProof {
       assert KnownKeys(c, v') == Abstraction(c, v').mapp.Keys;  // trigger
       assert KnownKeys(c, v) == Abstraction(c, v).mapp.Keys;    // trigger
     }
-    assert MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.NoOpStep); // witness
+    specstep := MapSpec.NoOpStep; // what used to be a witness is now explicitly exposed.
 //#end-elide
   }
 
-  // This is your proof goal.
-  // You'll need a case analysis on the different kinds of steps to prove
-  // it.
-  lemma RefinementNext(c: Constants, v: Variables, v': Variables)
+  // This trusted predicate forces application-visible actions to keep the same labels.
+  predicate RefinementHonorsApplicationCorrespondence(c: Constants, v: Variables, v': Variables, step: Step)
     requires Inv(c, v)
-    requires Next(c, v, v')
+    requires NextStep(c, v, v', step)
+  {
+    // Application-visible steps are labeled as such in the spec action
+    && (step.AcceptRequestStep?
+        ==> MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.AcceptRequestStep(step.request)))
+    && (step.DeliverReplyStep?
+        ==> MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.DeliverReplyStep(step.reply)))
+    // If protocol step isn't application-visible...
+    && (!step.AcceptRequestStep? && !step.DeliverReplyStep? ==>
+        // then whatever happened in the spec wasn't an application-visible step.
+        forall specstep:MapSpec.Step | specstep.AcceptRequestStep? || specstep.DeliverReplyStep?
+          :: !MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), specstep))
+  }
+
+  // The proof goal is modified from chapter06 to expose the protocl- and
+  // spec-level step objects so we can add an application-correspendence check
+  // as an ensures. So where we used to just producte a witness to the application-level
+  // step, we now have to actually return it to satisfy the lemmas' mentions of NextStep
+  // (instead of just Next).
+  lemma RefinementNext(c: Constants, v: Variables, v': Variables, step: Step) returns (specstep: MapSpec.Step)
+    requires Inv(c, v)
+    requires NextStep(c, v, v', step)
     ensures Inv(c, v')
-    ensures MapSpec.Next(Abstraction(c, v), Abstraction(c, v'))
+    ensures MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), specstep)
+    ensures RefinementHonorsApplicationCorrespondence(c, v, v', step) // demand proof of application correspondence
   {
     // Use InsertPreservesInvAndRefines, QueryPreservesInvAndRefines, and
     // TransferPreservesInvAndRefines here to complete this proof.
@@ -498,21 +519,21 @@ module RefinementProof {
       case AcceptRequestStep(request) => {
         EqualMapsEqualKeysHeldUniquely(c, v, v');
         EqualMapsEqualMapp(c, v, v');
-        assert MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.AcceptRequestStep(request)); // witness
+        specstep := MapSpec.AcceptRequestStep(request);
       }
       case DeliverReplyStep(request) => {
         EqualMapsEqualKeysHeldUniquely(c, v, v');
         EqualMapsEqualMapp(c, v, v');
-        assert MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.DeliverReplyStep(request)); // witness
+        specstep := MapSpec.DeliverReplyStep(request);
       }
       case InsertStep(idx, request) => {
-        InsertPreservesInvAndRefines(c, v, v', idx, request);
+        specstep := InsertPreservesInvAndRefines(c, v, v', idx, request);
       }
       case QueryStep(idx, request, output) => {
-        QueryPreservesInvAndRefines(c, v, v', idx, request, output);
+        specstep := QueryPreservesInvAndRefines(c, v, v', idx, request, output);
       }
       case TransferStep(sendIdx, recvIdx, key, value) => {
-        TransferPreservesInvAndRefines(c, v, v', sendIdx, recvIdx, key, value);
+        specstep := TransferPreservesInvAndRefines(c, v, v', sendIdx, recvIdx, key, value);
       }
 //#end-elide
   }
