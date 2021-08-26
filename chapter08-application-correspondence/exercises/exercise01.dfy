@@ -321,10 +321,11 @@ module TrustedABI {
 // client asynchrony of chapter07, and are necessary to demonstrate application
 // correspondence from this chapter.
 //
-// Note that this state machine looks a little unconventional: instead of Next,
-// it has three "entry points" (Send, Recv, and Local), reflecting the fact
-// that those "partial actions" interact in different ways with other parts of
-// DistributedSystem, and hence receive different binding variables.
+// Note that, because this exercise takes the shortcut of having synchronous
+// communication between Hosts (instead of the chapter05 Network model), we
+// can't have a single Next "entry point" into Host. We use "Next" for the
+// familiar case (one host takes a step, other hosts snooz), and then model
+// synchronous communication with Send on one host and Recv on another.
 module Host {
   import opened Library
   import opened Types
@@ -379,10 +380,14 @@ module Host {
     && v' == v.(mapp := v.mapp[msg.key := msg.value])  // key appears in recv map
   }
 
-  // "Entry point" from DistributedSystem: process a client request that's waiting in the ABI -- a serialization point.
-  predicate Local(c: Constants, v: Variables, v': Variables, abiOps: TrustedABI.ABIOps)
+  // "Entry point" from DistributedSystem: Operate locally (no communication
+  // with other Hosts). This may include processing a client request that's
+  // waiting in the ABI -- a serialization point.
+  // (We collapsed the JayNF here because, for this example, there's no
+  // nondeterminism beyond what's already captured in abiOps.)
+  predicate Next(c: Constants, v: Variables, v': Variables, abiOps: TrustedABI.ABIOps)
   {
-    && abiOps.ServiceRequestOp? // We don't have any NoOp Local ops. (Send/Recv is an ABI noop, but it's not Local)
+    && abiOps.ServiceRequestOp? // We don't have any NoOp ops other than transfer (Send/Recv), which use the other entry points.
     && match abiOps.request
       case InsertRequest(_,_,_) => Insert(c, v, v', abiOps)
       case QueryRequest(_,_) => Query(c, v, v', abiOps)
@@ -456,12 +461,12 @@ module DistributedSystem {
     && v'.abi == v.abi  // UNCHANGED
   }
 
-  predicate Local(c: Constants, v: Variables, v':Variables, hostIdx:HostIdx, abiOps: TrustedABI.ABIOps)
+  predicate OneHost(c: Constants, v: Variables, v':Variables, hostIdx:HostIdx, abiOps: TrustedABI.ABIOps)
   {
     && v.WF(c)
     && v'.WF(c)
     && c.ValidHost(hostIdx)
-    && Host.Local(c.hosts[hostIdx], v.hosts[hostIdx], v'.hosts[hostIdx], abiOps)
+    && Host.Next(c.hosts[hostIdx], v.hosts[hostIdx], v'.hosts[hostIdx], abiOps)
     && (forall otherIdx:HostIdx | c.ValidHost(otherIdx) && otherIdx != hostIdx :: v'.hosts[otherIdx] == v.hosts[otherIdx])
     && TrustedABI.ExecuteOp(c.abi, v.abi, v'.abi, abiOps)
   }
@@ -469,14 +474,14 @@ module DistributedSystem {
   datatype Step =
     | ClientOpStep
     | CommunicateStep(sendIdx: HostIdx, recvIdx: HostIdx, msg: Host.Message)
-    | LocalStep(hostIdx: HostIdx, abiOps: TrustedABI.ABIOps)
+    | OneHostStep(hostIdx: HostIdx, abiOps: TrustedABI.ABIOps)
 
   predicate NextStep(c: Constants, v: Variables, v':Variables, step: Step)
   {
     match step
       case ClientOpStep => ClientOp(c, v, v')
       case CommunicateStep(sendIdx, recvIdx, msg) => Communicate(c, v, v', sendIdx, recvIdx, msg)
-      case LocalStep(hostIdx, abiOps) => Local(c, v, v', hostIdx, abiOps)
+      case OneHostStep(hostIdx, abiOps) => OneHost(c, v, v', hostIdx, abiOps)
   }
 
   predicate Next(c: Constants, v: Variables, v':Variables)
@@ -637,7 +642,7 @@ module RefinementProof {
     requires Inv(c, v)
     requires Next(c, v, v')
     requires c.ValidHost(hostIdx)
-    requires Local(c, v, v', hostIdx, abiOps)
+    requires OneHost(c, v, v', hostIdx, abiOps)
     requires Host.Insert(c.hosts[hostIdx], v.hosts[hostIdx], v'.hosts[hostIdx], abiOps)
     ensures Inv(c, v')
     ensures MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.InsertOpStep(abiOps.request))
@@ -751,7 +756,7 @@ module RefinementProof {
     requires Next(c, v, v')
     requires c.ValidHost(hostIdx)
     requires v'.WF(c)
-    requires Local(c, v, v', hostIdx, abiOps)
+    requires OneHost(c, v, v', hostIdx, abiOps)
     requires Host.Query(c.hosts[hostIdx], v.hosts[hostIdx], v'.hosts[hostIdx], abiOps)
     ensures Inv(c, v')
     ensures MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.QueryOpStep(abiOps.request, abiOps.reply.output))
@@ -867,7 +872,7 @@ module RefinementProof {
       case CommunicateStep(sendIdx, recvIdx, msg) => {
         TransferPreservesInvAndRefines(c, v, v', sendIdx, recvIdx, msg);
       }
-      case LocalStep(hostIdx, abiOps) => {
+      case OneHostStep(hostIdx, abiOps) => {
         match abiOps.request
           case InsertRequest(_,_,_) => {
             InsertPreservesInvAndRefines(c, v, v', hostIdx, abiOps);
