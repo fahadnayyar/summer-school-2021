@@ -293,7 +293,7 @@ module TrustedABI {
   {
     match step
       case AcceptRequestStep(request) => AcceptRequest(v, v', request)
-      case DeliverReplyStep(request) => DeliverReply(v, v', request)
+      case DeliverReplyStep(reply) => DeliverReply(v, v', reply)
   }
 
   predicate ClientOp(c:Constants, v:Variables, v':Variables)
