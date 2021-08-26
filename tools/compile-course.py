@@ -199,7 +199,7 @@ class Element:
       return []
     path = pathfn()
     verifyFlag = ["/noVerify"] if not verify else []
-    cmd = ["dafny"] + verifyFlag + ["/compile:0", "/vcsCores:6", "/timeLimit:5", path]
+    cmd = ["dafny"] + verifyFlag + ["/compile:0", "/vcsCores:6", "/timeLimit:10", path]
     print(f"  -- {' '.join(cmd)}")
     return [(self, subprocess.call(cmd)==0)]
 #    if "midterm" in path: #XXX TODO skipping to final
