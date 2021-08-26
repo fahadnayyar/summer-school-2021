@@ -518,7 +518,7 @@ module RefinementProof {
   // This proof's interaction with automation gets a little clumsier with the
   // addition of new fields to AsyncClientShardedKVProtocol.Variables. In
   // chapter06, if v'.maps==v.maps, then v'==v, so it knew
-  // KeysHeldUniquely(v')==KeysHeldUniquely(v') just by substitution, even
+  // KeysHeldUniquely(v')==KeysHeldUniquely(v) just by substitution, even
   // thought it couldn't see inside that predicate because it's {:opaque}.
   // Now, an operation like Query leaves the hosts' maps unchanged, but v'!=v
   // because we fiddled with v.abi (requests and replies), and Dafny can't tell
