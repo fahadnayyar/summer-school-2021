@@ -242,9 +242,10 @@ module TrustedABI {
   }
 
   // Type of binding variable between Host and TrustedABI. Analogous to Network.MsgOps
-  datatype ABIOps =
-    | ServiceRequestOp(request:Input, reply:Output)
-    | NoOp
+  // While it expresses about the same freedom as MsgOps, no practical procotol could
+  // remove a request and *not* return a reply and still hope to refine to MapSpec, since
+  // MapSpec always replaces a request with a reply atomically.
+  datatype ABIOps = ABIOps(request:Option<Input>, reply:Option<Output>)
 
   // Allow the Host to consume a request and produce a reply, if it wishes -- or
   // just do some background work (not used in this exercise).
@@ -252,19 +253,18 @@ module TrustedABI {
   // abiOps is a binding variable: protocol says what it'd do if it got that request,
   // and this module gets to say whether a request is available right now, or record
   // the fact that the protocol returned a given result.
+  //
+  // The Host protocol can drop any request it wants, and introduce any reply
+  // it wants; that won't affect meaning, since it ultimately has to get the
+  // incoming requests and outgoing replies to match what the spec allows.
   predicate ExecuteOp(c: Constants, v: Variables, v': Variables, abiOps: ABIOps)
   {
-    match abiOps
-      case ServiceRequestOp(request, reply) =>
-        // Protocol can drop any request it wants, and introduce any reply it
-        // wants; that won't affect meaning, since it ultimately has to get the
-        // incoming requests and outgoing replies to match what the spec
-        // allows.
-        && abiOps.request in v.requests
-        && abiOps.reply !in v.replies
-        && v' == v.(requests := v.requests - {abiOps.request}, replies := v.replies + {abiOps.reply})
-      case NoOp() =>
-        && v' == v
+    && (abiOps.request.Some? ==>
+        && abiOps.request.value in v.requests
+        && v'.requests == v.requests - {abiOps.request.value})
+    && (abiOps.reply.Some? ==>
+        && abiOps.reply.value !in v.replies
+        && v'.replies == v.replies + {abiOps.reply.value})
   }
 
   // Record the claim that a client actually made this request.
@@ -346,21 +346,25 @@ module Host {
 
   predicate Insert(c: Constants, v: Variables, v': Variables, abiOps: TrustedABI.ABIOps)
   {
-    && abiOps.ServiceRequestOp?
-    && abiOps.request.InsertRequest?
-    && abiOps.request.key in v.mapp // this host needs to be authoritative on this key
-    && abiOps.reply == InsertReply(abiOps.request)
-    && v' == v.(mapp := v.mapp[abiOps.request.key := abiOps.request.value])
+    && abiOps.request.Some?
+    && abiOps.request.value.InsertRequest?
+    && var request := abiOps.request.value;
+    && request.key in v.mapp // this host needs to be authoritative on this key
+    && abiOps.reply == Some(InsertReply(request))
+    && v' == v.(mapp := v.mapp[request.key := request.value])
   }
 
   predicate Query(c: Constants, v: Variables, v': Variables, abiOps: TrustedABI.ABIOps)
   {
-    && abiOps.ServiceRequestOp?
-    && abiOps.request.QueryRequest?
-    && abiOps.request.key in v.mapp // this host needs to be authoritative on this key
-    && abiOps.reply.QueryReply?
-    && abiOps.reply.request == abiOps.request
-    && abiOps.reply.output == v.mapp[abiOps.request.key]
+    && abiOps.request.Some?
+    && abiOps.request.value.QueryRequest?
+    && abiOps.reply.Some?
+    && abiOps.reply.value.QueryReply?
+    && var request := abiOps.request.value;
+    && var reply := abiOps.reply.value;
+    && request.key in v.mapp // this host needs to be authoritative on this key
+    && reply.request == request
+    && reply.output == v.mapp[request.key]
     && v' == v
   }
 
@@ -387,8 +391,8 @@ module Host {
   // nondeterminism beyond what's already captured in abiOps.)
   predicate Next(c: Constants, v: Variables, v': Variables, abiOps: TrustedABI.ABIOps)
   {
-    && abiOps.ServiceRequestOp? // We don't have any NoOp ops other than transfer (Send/Recv), which use the other entry points.
-    && match abiOps.request
+    && abiOps.request.Some?
+    && match abiOps.request.value
       case InsertRequest(_,_,_) => Insert(c, v, v', abiOps)
       case QueryRequest(_,_) => Query(c, v, v', abiOps)
   }
@@ -645,11 +649,11 @@ module RefinementProof {
     requires OneHost(c, v, v', hostIdx, abiOps)
     requires Host.Insert(c.hosts[hostIdx], v.hosts[hostIdx], v'.hosts[hostIdx], abiOps)
     ensures Inv(c, v')
-    ensures MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.InsertOpStep(abiOps.request))
+    ensures MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.InsertOpStep(abiOps.request.value))
   {
     var abstractMap := Abstraction(c, v).mapp;
     var abstractMap' := Abstraction(c, v').mapp;
-    var request := abiOps.request;
+    var request := abiOps.request.value;
     var insertedKey := request.key; // use some let-in assignments to recycle chapter06 proof...
     var value := request.value;
 
@@ -698,7 +702,7 @@ module RefinementProof {
     assert KnownKeys(c, v') == Types.AllKeys() by {
       assert abstractMap'.Keys == KnownKeys(c, v'); // trigger
     }
-    assert MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.InsertOpStep(abiOps.request));
+    assert MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.InsertOpStep(abiOps.request.value));
   }
 
   lemma ExistsHostHasKey(c:Constants, v:Variables, key:Key)
@@ -759,14 +763,14 @@ module RefinementProof {
     requires OneHost(c, v, v', hostIdx, abiOps)
     requires Host.Query(c.hosts[hostIdx], v.hosts[hostIdx], v'.hosts[hostIdx], abiOps)
     ensures Inv(c, v')
-    ensures MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.QueryOpStep(abiOps.request, abiOps.reply.output))
+    ensures MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.QueryOpStep(abiOps.request.value, abiOps.reply.value.output))
   {
-    var request := abiOps.request;
+    var request := abiOps.request.value;
     var key := request.key;
     assert v.hosts == v'.hosts; // weirdly obvious trigger
     assert Inv(c, v') by { reveal_KeysHeldUniquely(); }
     assert key in KnownKeys(c, v) by { HostKeysSubsetOfKnownKeys(c, v, |c.hosts|); }
-    assert abiOps.reply.output == Abstraction(c, v).mapp[key] by {
+    assert abiOps.reply.value.output == Abstraction(c, v).mapp[key] by {
       assert HostHasKey(c, v, hostIdx, key);  // witness
       reveal_KeysHeldUniquely();
     }
@@ -873,7 +877,7 @@ module RefinementProof {
         TransferPreservesInvAndRefines(c, v, v', sendIdx, recvIdx, msg);
       }
       case OneHostStep(hostIdx, abiOps) => {
-        match abiOps.request
+        match abiOps.request.value
           case InsertRequest(_,_,_) => {
             InsertPreservesInvAndRefines(c, v, v', hostIdx, abiOps);
           }
