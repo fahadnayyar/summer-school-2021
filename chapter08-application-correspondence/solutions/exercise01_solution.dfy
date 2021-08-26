@@ -29,7 +29,9 @@ module TrustedABI {
     | ServiceRequestOp(request:Input, reply:Output)
     | NoOp
 
-  // 
+  // Allow the Host to consume a request and produce a reply, if it wishes -- or
+  // just do some background work (not used in this exercise).
+  //
   // abiOps is a binding variable: protocol says what it'd do if it got that request,
   // and this module gets to say whether a request is available right now, or record
   // the fact that the protocol returned a given result.
@@ -48,24 +50,25 @@ module TrustedABI {
         && v' == v
   }
 
-  // Record the claim that a client actually made this request. This
-  // corresponds to a trusted handler attesting that the client wanted
-  // the request, it wasn't just invented by the protocol.
+  // Record the claim that a client actually made this request.
+  // This corresponds to a trusted handler attesting that the client wanted the
+  // request, it wasn't just invented by the protocol.
   predicate AcceptRequest(v:Variables, v':Variables, request: Input)
   {
-//#exercise    false // TODO Define this predicate
+//#exercise    false // TODO Define this predicate. You're defining trusted bottom-bread spec now, so be careful!
 //#start-elide
     && request !in v.requests
     && v' == v.(requests := v.requests + {request})
 //#end-elide
   }
 
-  // Record the fact that the client learned this reply. This corresponds
-  // to a trusted handler attesting that this reply was exposed to the
-  // client -- so the spec had better justify the exposed value.
+  // Ensure there's a reply to deliver to a client, and record the fact that
+  // it's been delivered so we can't deliver a duplicate later.
+  // This corresponds to a trusted handler attesting that this reply was
+  // exposed to the client -- so the spec must justify the exposed value.
   predicate DeliverReply(v:Variables, v':Variables, reply: Output)
   {
-//#exercise    false // TODO Define this predicate
+//#exercise    false // TODO Define this predicate. You're defining trusted bottom-bread spec now, so be careful!
 //#start-elide
     && reply in v.replies
     && v' == v.(replies := v.replies - {reply})
@@ -90,11 +93,30 @@ module TrustedABI {
   }
 }
 
-// For reference, go see your or the instructors' solution to chapter06-refine/exercises/exercise01.dfy
-// Note that, in this version, we split up the seq<map> into separate Host state machines (which then
-// there are a seq of in the DistributedSystem), so it feels closer to our canonical compound
-// state machine module of a distributed system. However, to keep this example simple, we still use
-// synchronous communication among hosts (not an asynchronous network).
+// This protocol definition began life as ShardedKVProtocol from
+// chapter06-refine/solutions/exercise01.dfy. That exercise took a shortcut:
+// rather that build a full-blown chapter05-style DistributedSystem,
+// it modeled the set of hosts' maps as a seq of maps in a single state machine.
+// So the first difference is that this Host contains a single map; the
+// DistributedSystem module below it gathers up the set of several Hosts.
+// That also means we have to split the single Transfer step (which atomically
+// communicated a k,v pair from one host to another -- no network asynchrony)
+// into separate Send and Recv actions, each of which runs on one Host, bound
+// together by DistributedSystem.
+// (TODO(jonh): Manos, think we should just fix all that stuff in ch06 for next
+// time so this thing looks much closer? Yeah. We should.)
+//
+// The second difference, essential to this exercise, is that we introduce the
+// connection to the client-visible Input requests and Output replies via a
+// binding variable (abiOps) from the DistributedSystem. They capture the
+// client asynchrony of chapter07, and are necessary to demonstrate application
+// correspondence from this chapter.
+//
+// Note that, because this exercise takes the shortcut of having synchronous
+// communication between Hosts (instead of the chapter05 Network model), we
+// can't have a single Next "entry point" into Host. We use "Next" for the
+// familiar case (one host takes a step, other hosts snooz), and then model
+// synchronous communication with Send on one host and Recv on another.
 module Host {
   import opened Library
   import opened Types
@@ -149,16 +171,29 @@ module Host {
     && v' == v.(mapp := v.mapp[msg.key := msg.value])  // key appears in recv map
   }
 
-  // "Entry point" from DistributedSystem: process a client request that's waiting in the ABI -- a serialization point.
-  predicate Local(c: Constants, v: Variables, v': Variables, abiOps: TrustedABI.ABIOps)
+  // "Entry point" from DistributedSystem: Operate locally (no communication
+  // with other Hosts). This may include processing a client request that's
+  // waiting in the ABI -- a serialization point.
+  // (We collapsed the JayNF here because, for this example, there's no
+  // nondeterminism beyond what's already captured in abiOps.)
+  predicate Next(c: Constants, v: Variables, v': Variables, abiOps: TrustedABI.ABIOps)
   {
-    && abiOps.ServiceRequestOp? // We don't have any NoOp Local ops. (Send/Recv is an ABI noop, but it's not Local)
+    && abiOps.ServiceRequestOp? // We don't have any NoOp ops other than transfer (Send/Recv), which use the other entry points.
     && match abiOps.request
       case InsertRequest(_,_,_) => Insert(c, v, v', abiOps)
       case QueryRequest(_,_) => Query(c, v, v', abiOps)
   }
 }
 
+// This is the trusted distributed system compound state machine that ties
+// copies of the untrusted Host protocol together with an instance of the
+// TrustedABI state machine. Observe what kinds of interactions it allows -- in
+// particular, convince yourself that Player 2 can't synthesize a client Request
+// from whole cloth; the TrustedABI has to do that.
+//
+// We ask you to define ClientOp -- the step where a request arrives to or
+// reply is deliverd from the TrustedABI, and the Hosts aren't allowed to touch
+// anything.
 module DistributedSystem {
   import Host
   import TrustedABI
@@ -191,10 +226,11 @@ module DistributedSystem {
     && TrustedABI.Init(c.abi, v.abi)
   }
 
-  // ABI records an incoming request or delivers a reply
+  // Have ABI module record an incoming request or delivers a reply;
+  // no host does anything.
   predicate ClientOp(c:Constants, v:Variables, v':Variables)
   {
-//#exercise    false // TODO Define this predicate
+//#exercise    false // TODO Define this predicate. You're defining trusted bottom-bread spec now, so be careful!
 //#start-elide
     && v.WF(c)
     && v'.WF(c)
@@ -222,12 +258,12 @@ module DistributedSystem {
     && v'.abi == v.abi  // UNCHANGED
   }
 
-  predicate Local(c: Constants, v: Variables, v':Variables, hostIdx:HostIdx, abiOps: TrustedABI.ABIOps)
+  predicate OneHost(c: Constants, v: Variables, v':Variables, hostIdx:HostIdx, abiOps: TrustedABI.ABIOps)
   {
     && v.WF(c)
     && v'.WF(c)
     && c.ValidHost(hostIdx)
-    && Host.Local(c.hosts[hostIdx], v.hosts[hostIdx], v'.hosts[hostIdx], abiOps)
+    && Host.Next(c.hosts[hostIdx], v.hosts[hostIdx], v'.hosts[hostIdx], abiOps)
     && (forall otherIdx:HostIdx | c.ValidHost(otherIdx) && otherIdx != hostIdx :: v'.hosts[otherIdx] == v.hosts[otherIdx])
     && TrustedABI.ExecuteOp(c.abi, v.abi, v'.abi, abiOps)
   }
@@ -235,14 +271,14 @@ module DistributedSystem {
   datatype Step =
     | ClientOpStep
     | CommunicateStep(sendIdx: HostIdx, recvIdx: HostIdx, msg: Host.Message)
-    | LocalStep(hostIdx: HostIdx, abiOps: TrustedABI.ABIOps)
+    | OneHostStep(hostIdx: HostIdx, abiOps: TrustedABI.ABIOps)
 
   predicate NextStep(c: Constants, v: Variables, v':Variables, step: Step)
   {
     match step
       case ClientOpStep => ClientOp(c, v, v')
       case CommunicateStep(sendIdx, recvIdx, msg) => Communicate(c, v, v', sendIdx, recvIdx, msg)
-      case LocalStep(hostIdx, abiOps) => Local(c, v, v', hostIdx, abiOps)
+      case OneHostStep(hostIdx, abiOps) => OneHost(c, v, v', hostIdx, abiOps)
   }
 
   predicate Next(c: Constants, v: Variables, v':Variables)
@@ -251,6 +287,19 @@ module DistributedSystem {
   }
 }
 
+// This proof began life as the solution to chapter06/exercises/exercise06.dfy.
+// Rejiggering the protocol model to be a DistributedSystem compound state
+// machine entailed making a bunch of boring search-replace syntax changes to the
+// text below, which we did for you -- try diffing it against that solution.
+// That change also interfered with a bit of automation; read the comment above
+// the newly introduced lemma EqualMapsEqualKeysHeldUniquely to understand what
+// happened.
+// Finally, the chapter06 proof predates chapter07's introduction of the
+// AcceptRequest and DeliverReply steps that model client asynchrony in both
+// the spec (chapter07) and the protocol (here).
+//
+// Your jobs: update the Abstraction function, plus there's a hole in the proof
+// below with a TODO marked; fill it in.
 module RefinementProof {
   import opened Library
   import opened Types
@@ -280,13 +329,10 @@ module RefinementProof {
   function AbstractionOneKey(c: Constants, v: Variables, key:Key) : Value
     requires v.WF(c)
   {
-//#exercise    DefaultValue() // Replace me
-//#start-elide
     if exists idx :: HostHasKey(c, v, idx, key)
     then
       v.hosts[KeyHolder(c, v, key)].mapp[key]
     else DefaultValue()
-//#end-elide
   }
 
   // We construct the finite set of possible map keys here, all
@@ -326,16 +372,14 @@ module RefinementProof {
   function Abstraction(c: Constants, v: Variables) : MapSpec.Variables
     requires v.WF(c)
   {
-//#exercise    MapSpec.Variables(InitialMap()) // Replace me
-//#start-elide
     MapSpec.Variables(
       map key | key in KnownKeys(c, v) :: AbstractionOneKey(c, v, key),
-      v.abi.requests,
-      v.abi.replies)
+//#exercise      {}, {})  // TODO that's not gonna work. Abstract appropriately.
+//#start-elide
+      v.abi.requests, v.abi.replies)
 //#end-elide
   }
 
-//#elide  // This does slow things down quite a bit.
   // This definition is useful, but a bit trigger-happy, so we made it
   // opaque. This means that its body is hidden from Dafny, unless you
   // explicitly write "reveal_KeysHeldUniquely();", at which point the
@@ -351,17 +395,13 @@ module RefinementProof {
 
   predicate Inv(c: Constants, v: Variables)
   {
-//#exercise    false // Replace me
-//#start-elide
     && v.WF(c)
     // Every key lives somewhere.
     && KnownKeys(c, v) == Types.AllKeys()
     // No key lives in two places.
     && KeysHeldUniquely(c, v)
-//#end-elide
   }
 
-//#start-elide
   lemma InitAllKeysEmpty(c: Constants, v: Variables, count: nat)
     requires Init(c, v)
     requires 0 < count <= |c.hosts|
@@ -374,20 +414,17 @@ module RefinementProof {
     }
   }
 
-//#end-elide
   lemma RefinementInit(c: Constants, v: Variables)
     requires c.WF()
     requires Init(c, v)
     ensures MapSpec.Init(Abstraction(c, v))
     ensures Inv(c, v)
   {
-//#start-elide
     InitAllKeysEmpty(c, v, |c.hosts|);
     reveal_KeysHeldUniquely();
-//#end-elide
   }
 
-  // Since we know that keys are held uniquely, if we've found a host that holds a key, 
+  // Since we know that keys are held uniquely, if we've found a host that holds a key,
   // that can be the only solution to the 'choose' operation that defines KeyHolder.
   lemma AnyHostWithKeyIsKeyHolder(c: Constants, v: Variables, hostidx:HostIdx, key:Key)
     requires v.WF(c)
@@ -405,12 +442,11 @@ module RefinementProof {
     requires Inv(c, v)
     requires Next(c, v, v')
     requires c.ValidHost(hostIdx)
-    requires Local(c, v, v', hostIdx, abiOps)
+    requires OneHost(c, v, v', hostIdx, abiOps)
     requires Host.Insert(c.hosts[hostIdx], v.hosts[hostIdx], v'.hosts[hostIdx], abiOps)
     ensures Inv(c, v')
     ensures MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.InsertOpStep(abiOps.request))
   {
-//#start-elide
     var abstractMap := Abstraction(c, v).mapp;
     var abstractMap' := Abstraction(c, v').mapp;
     var request := abiOps.request;
@@ -463,7 +499,6 @@ module RefinementProof {
       assert abstractMap'.Keys == KnownKeys(c, v'); // trigger
     }
     assert MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.InsertOpStep(abiOps.request));
-//#end-elide
   }
 
   lemma ExistsHostHasKey(c:Constants, v:Variables, key:Key)
@@ -472,8 +507,6 @@ module RefinementProof {
     ensures exists hostidx :: HostHasKey(c, v, hostidx, key)
   {
     EachUnionMemberBelongsToASet(MapDomains(c, v));
-//    assert key in UnionSeqOfSets(MapDomains(c, v));
-//    assert exists idx :: 0<=idx<c.mapCount && key in MapDomains(c, v)[idx];
     var idx :| 0<=idx<|c.hosts| && key in MapDomains(c, v)[idx];
     assert HostHasKey(c, v, idx, key);
   }
@@ -482,16 +515,17 @@ module RefinementProof {
   // addition of new fields to AsyncClientShardedKVProtocol.Variables. In
   // chapter06, if v'.maps==v.maps, then v'==v, so it knew
   // KeysHeldUniquely(v')==KeysHeldUniquely(v') just by substitution, even
-  // thought it couldn't see inside that predicate because it's {:opaque}.  Now
-  // we can have equal maps, but v'!=v because we fiddled with the
-  // requests/replies fields (as in Query), and Dafny can't tell that the
-  // predicate is identical.
+  // thought it couldn't see inside that predicate because it's {:opaque}.
+  // Now, an operation like Query leaves the hosts' maps unchanged, but v'!=v
+  // because we fiddled with v.abi (requests and replies), and Dafny can't tell
+  // that the predicate is identical.
   // The instructors' minimal-edit solution was to prove these lemmas and use
   // them as needed.
   // Another more elegant possibility would be to redefine KeysHeldUniquely and
-  // related functions to only accept the maps field as an argument, so that
-  // Dafny could continue reasoning about them using only substitution. That
-  // would entail plumbing through some new maps-specific WF conditions as well.
+  // related functions to only accept the hosts (and hence their maps) field as
+  // an argument, so that Dafny could continue reasoning about them using only
+  // substitution. That would entail plumbing through some new
+  // hosts-seq-specific WF conditions as well.
   lemma EqualMapsEqualKeysHeldUniquely(c: Constants, v: Variables, v': Variables)
     requires v.WF(c)
     requires v'.WF(c)
@@ -522,12 +556,11 @@ module RefinementProof {
     requires Next(c, v, v')
     requires c.ValidHost(hostIdx)
     requires v'.WF(c)
-    requires Local(c, v, v', hostIdx, abiOps)
+    requires OneHost(c, v, v', hostIdx, abiOps)
     requires Host.Query(c.hosts[hostIdx], v.hosts[hostIdx], v'.hosts[hostIdx], abiOps)
     ensures Inv(c, v')
     ensures MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.QueryOpStep(abiOps.request, abiOps.reply.output))
   {
-//#start-elide
     var request := abiOps.request;
     var key := request.key;
     assert v.hosts == v'.hosts; // weirdly obvious trigger
@@ -538,7 +571,6 @@ module RefinementProof {
       reveal_KeysHeldUniquely();
     }
     EqualMapsEqualMapp(c, v, v');
-//#end-elide
   }
 
   // This is not a goal by itself, it's one of the cases you'll need to prove
@@ -554,7 +586,6 @@ module RefinementProof {
     ensures Inv(c, v')
     ensures MapSpec.NextStep(Abstraction(c, v), Abstraction(c, v'), MapSpec.NoOpStep)
   {
-//#start-elide
     // domain preserved
     forall key
       ensures key in Abstraction(c, v).mapp <==> key in Abstraction(c, v').mapp
@@ -610,44 +641,36 @@ module RefinementProof {
       assert KnownKeys(c, v') == Abstraction(c, v').mapp.Keys;  // trigger
       assert KnownKeys(c, v) == Abstraction(c, v).mapp.Keys;    // trigger
     }
-//#end-elide
   }
 
   // Player 2 can define any Abstraction function they want, but it must
   // synchronize the application-visible requests and replies from the
   // protocol-level ABI to the spec-level model.
+  // Unless you're trying to trick Player 1, this lemma should prove without help.
   lemma RefinementHonorsApplicationCorrespondence(c: Constants, v: Variables)
     requires Inv(c, v)
-    // It's wonky that we have to look inside the untrusted 'v' to find the abi state,
-    // but that's a consequence of the wonky choice of tucking the trusted ABI into the
-    // protocol module, rather than having a trusted DistributedSystem that contains
-    // the untrusted host protocol module; see comments above.
     ensures Abstraction(c, v).requests == v.abi.requests
     ensures Abstraction(c, v).replies == v.abi.replies
   {
   }
 
-  // The proof goal is modified from chapter06 to expose the protocl- and
-  // spec-level step objects so we can add an application-correspendence check
-  // as an ensures. So where we used to just producte a witness to the application-level
-  // step, we now have to actually return it to satisfy the lemmas' mentions of NextStep
-  // (instead of just Next).
-  lemma RefinementNext(c: Constants, v: Variables, v': Variables, step: Step)
+  lemma RefinementNext(c: Constants, v: Variables, v': Variables)
     requires Inv(c, v)
-    requires NextStep(c, v, v', step)
+    requires Next(c, v, v')
     ensures Inv(c, v')
     ensures MapSpec.Next(Abstraction(c, v), Abstraction(c, v'))
   {
     // Use InsertPreservesInvAndRefines, QueryPreservesInvAndRefines, and
     // TransferPreservesInvAndRefines here to complete this proof.
-//#start-elide
-    var av := Abstraction(c, v);
-    var av' := Abstraction(c, v');
     var step :| NextStep(c, v, v', step);
     match step
       case ClientOpStep => {
         EqualMapsEqualKeysHeldUniquely(c, v, v');
         EqualMapsEqualMapp(c, v, v');
+//#exercise        // TODO New proof needed for new ClientOpStep -- witnesses to corresponding new MapSpec steps.
+//#start-elide
+        var av := Abstraction(c, v);
+        var av' := Abstraction(c, v');
         var abistep :| TrustedABI.ClientOpStep(c.abi, v.abi, v'.abi, abistep);
         match abistep
           case AcceptRequestStep(request) => {
@@ -656,11 +679,12 @@ module RefinementProof {
           case DeliverReplyStep(request) => {
             assert MapSpec.NextStep(av, av', MapSpec.DeliverReplyStep(request)); // witness step
           }
+//#end-elide
       }
       case CommunicateStep(sendIdx, recvIdx, msg) => {
         TransferPreservesInvAndRefines(c, v, v', sendIdx, recvIdx, msg);
       }
-      case LocalStep(hostIdx, abiOps) => {
+      case OneHostStep(hostIdx, abiOps) => {
         match abiOps.request
           case InsertRequest(_,_,_) => {
             InsertPreservesInvAndRefines(c, v, v', hostIdx, abiOps);
@@ -669,6 +693,5 @@ module RefinementProof {
             QueryPreservesInvAndRefines(c, v, v', hostIdx, abiOps);
           }
       }
-//#end-elide
   }
 }
