@@ -96,8 +96,6 @@
 
 - [`chapter06-refine/exercises/spec_model_for_ex04.dfy`](chapter06-refine/exercises/spec_model_for_ex04.dfy) -- Specification state machine for refinement proof in exercise04.
 
-## chapter07
-
 ## chapter07-async-clients
 
 - [`chapter07-async-clients/exercises/exercise01.dfy`](chapter07-async-clients/exercises/exercise01.dfy)<br>**KV Spec with Asynchronous Client Interface** -- Modify the KV spec to encode asynchronous client requests.
